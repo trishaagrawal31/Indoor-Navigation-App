@@ -1,0 +1,16 @@
+{
+  "mapAsset": "assets/map.svg",
+  "mapWidth": 400,
+  "mapHeight": 300,
+  "beacons": [
+    { "id": "b1", "bleId": "AA:AA:AA:AA:AA:01", "name": "Aisle 1", "x": 40, "y": 40 },
+    { "id": "b2", "bleId": "AA:AA:AA:AA:AA:02", "name": "Aisle 2", "x": 160, "y": 40 },
+    { "id": "b3", "bleId": "AA:AA:AA:AA:AA:03", "name": "Aisle 3", "x": 280, "y": 40 },
+    { "id": "b4", "bleId": "AA:AA:AA:AA:AA:04", "name": "Checkout", "x": 160, "y": 220 }
+  ],
+  "edges": [
+    { "from": "b1", "to": "b2", "weight": 12 },
+    { "from": "b2", "to": "b3", "weight": 12 },
+    { "from": "b2", "to": "b4", "weight": 18 }
+  ]
+}
