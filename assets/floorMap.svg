@@ -2,9 +2,9 @@
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 
 <svg
-   width="297mm"
-   height="210mm"
-   viewBox="0 0 297 210"
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 210 297"
    version="1.1"
    id="svg1"
    inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
@@ -42,6 +42,7 @@
        height="242.83079"
        id="rect10" />
   </defs>
+  <g transform="matrix(0,1,-1,0,210,0)">
   <g transform="rotate(90) translate(297 0)">
     <g
        inkscape:label="GTPD"
@@ -62,16 +63,16 @@
       <text
          xml:space="preserve"
          style="font-size:7.05556px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#ffffff;stroke-width:0.264583"
-         x="-203.29854"
-         y="183.49927"
+         x="-183.49927"
+         y="-203.29854"
          id="text15"
-         transform="rotate(-90)"
+         transform="rotate(-180)"
          inkscape:label="chatGPTRoomText"><tspan
            sodipodi:role="line"
            id="tspan15"
            style="stroke-width:0.264583"
-           x="-203.29854"
-           y="183.49927">ChatGPT Meeting Room</tspan></text>
+           x="-183.49927"
+           y="-203.29854">ChatGPT Meeting Room</tspan></text>
     </g>
     <g
        id="g21"
@@ -88,16 +89,16 @@
       <text
          xml:space="preserve"
          style="font-size:7.05556px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#ffffff;stroke-width:0.264583"
-         x="-76.012833"
-         y="183.09518"
+         x="-183.09518"
+         y="-76.012833"
          id="text16"
-         transform="rotate(-90)"
+         transform="rotate(-180)"
          inkscape:label="safariRoomText"><tspan
            sodipodi:role="line"
            id="tspan16"
            style="stroke-width:0.264583"
-           x="-76.012833"
-           y="183.09518">Safari Room</tspan></text>
+           x="-183.09518"
+           y="-76.012833">Safari Room</tspan></text>
     </g>
     <g
        id="g20"
@@ -114,16 +115,16 @@
       <text
          xml:space="preserve"
          style="font-size:7.05556px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#ffffff;stroke-width:0.264583"
-         x="-69.547523"
-         y="117.63396"
+         x="-117.63396"
+         y="-69.547523"
          id="text14"
-         transform="rotate(-90)"
+         transform="rotate(-180)"
          inkscape:label="gemmaRoomText"><tspan
            sodipodi:role="line"
            id="tspan14"
            style="stroke-width:0.264583"
-           x="-69.547523"
-           y="117.63396">Gemma Room</tspan></text>
+           x="-117.63396"
+           y="-69.547523">Gemma Room</tspan></text>
     </g>
     <g
        id="g19"
@@ -140,16 +141,16 @@
       <text
          xml:space="preserve"
          style="font-size:7.05556px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#ffffff;stroke-width:0.264583"
-         x="-63.082222"
-         y="76.821709"
+         x="-76.821709"
+         y="-63.082222"
          id="text13"
-         transform="rotate(-90)"
+         transform="rotate(-180)"
          inkscape:label="socRoomText"><tspan
            sodipodi:role="line"
            id="tspan13"
            style="stroke-width:0.264583"
-           x="-63.082222"
-           y="76.821709">SOC Room</tspan></text>
+           x="-76.821709"
+           y="-63.082222">SOC Room</tspan></text>
     </g>
     <g
        id="g17"
@@ -166,16 +167,16 @@
       <text
          xml:space="preserve"
          style="font-size:7.05556px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#ffffff;stroke-width:0.264583"
-         x="-227.54344"
-         y="95.409462"
+         x="-95.409462"
+         y="-227.54344"
          id="text12"
-         transform="rotate(-90)"
+         transform="rotate(-180)"
          inkscape:label="seating1Text"><tspan
            sodipodi:role="line"
            id="tspan12"
            style="stroke-width:0.264583"
-           x="-227.54344"
-           y="95.409462">Seating Area 1</tspan></text>
+           x="-95.409462"
+           y="-227.54344">Seating Area 1</tspan></text>
     </g>
     <g
        id="g18"
@@ -192,16 +193,16 @@
       <text
          xml:space="preserve"
          style="font-size:7.05556px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#ffffff;stroke-width:0.264583"
-         x="-108.33936"
-         y="24.291094"
+         x="-24.291094"
+         y="-108.33936"
          id="text11"
-         transform="rotate(-90)"
+         transform="rotate(-180)"
          inkscape:label="seating2Text"><tspan
            sodipodi:role="line"
            id="tspan11"
            style="stroke-width:0.264583"
-           x="-108.33936"
-           y="24.291094">Seating Area 2</tspan></text>
+           x="-24.291094"
+           y="-108.33936">Seating Area 2</tspan></text>
     </g>
     <g
        id="g16"
@@ -218,16 +219,18 @@
       <text
          xml:space="preserve"
          style="font-size:7.05556px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#ffffff;stroke-width:0.264583"
-         x="-261.4863"
-         y="29.948236"
+         x="-29.948236"
+         y="-261.4863"
          id="text10"
-         transform="rotate(-90)"
+         transform="rotate(-180)"
          inkscape:label="breakoutRoomText"><tspan
            sodipodi:role="line"
            id="tspan10"
            style="stroke-width:0.264583"
-           x="-261.4863"
-           y="29.948236">Breakout Room</tspan></text>
+           x="-29.948236"
+           y="-261.4863">Breakout Room</tspan></text>
     </g>
+  </g>
+  </g>
   </g>
 </svg>
