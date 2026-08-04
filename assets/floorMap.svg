@@ -2,9 +2,9 @@
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 
 <svg
-   width="210mm"
-   height="297mm"
-   viewBox="0 0 210 297"
+   width="297mm"
+   height="210mm"
+   viewBox="0 0 297 210"
    version="1.1"
    id="svg1"
    inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
@@ -24,34 +24,31 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      inkscape:zoom="0.65477694"
-     inkscape:rotation="0"
-     inkscape:cx="304.68391"
-     inkscape:cy="520.78804"
+     inkscape:cx="561.25984"
+     inkscape:cy="521.55166"
      inkscape:window-width="1920"
      inkscape:window-height="974"
      inkscape:window-x="-11"
      inkscape:window-y="-11"
      inkscape:window-maximized="1"
-     inkscape:current-layer="g22" />
+     inkscape:current-layer="layer1" />
   <defs
      id="defs1">
     <rect
-       x="77.889121"
-       y="763.61883"
-       width="41.235417"
-       height="242.83079"
+       x="77.889122"
+       y="763.61884"
+       width="41.235416"
+       height="242.8308"
        id="rect10" />
   </defs>
-  <g transform="matrix(0,1,-1,0,210,0)">
-  <g transform="rotate(90) translate(297 0)">
-    <g
-       inkscape:label="GTPD"
-       inkscape:groupmode="layer"
-       id="layer1">
+  <g
+     inkscape:label="GTPD"
+     inkscape:groupmode="layer"
+     id="layer1">
     <g
        id="g22"
        inkscape:label="chatGPTRoomGroup"
-       sodipodi:insensitive="true">
+       transform="rotate(90,141.83266,141.83266)">
       <rect
          style="fill:#000000;stroke-width:0.264583"
          id="rect2"
@@ -63,21 +60,21 @@
       <text
          xml:space="preserve"
          style="font-size:7.05556px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#ffffff;stroke-width:0.264583"
-         x="-183.49927"
-         y="-203.29854"
+         x="-203.29854"
+         y="183.49927"
          id="text15"
-         transform="rotate(-180)"
+         transform="rotate(-90)"
          inkscape:label="chatGPTRoomText"><tspan
            sodipodi:role="line"
            id="tspan15"
            style="stroke-width:0.264583"
-           x="-183.49927"
-           y="-203.29854">ChatGPT Meeting Room</tspan></text>
+           x="-203.29854"
+           y="183.49927">ChatGPT Meeting Room</tspan></text>
     </g>
     <g
        id="g21"
        inkscape:label="safariRoomGroup"
-       sodipodi:insensitive="true">
+       transform="rotate(90,142.43877,142.64082)">
       <rect
          style="fill:#000000;stroke-width:0.264583"
          id="rect3"
@@ -89,21 +86,21 @@
       <text
          xml:space="preserve"
          style="font-size:7.05556px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#ffffff;stroke-width:0.264583"
-         x="-183.09518"
-         y="-76.012833"
+         x="-76.012833"
+         y="183.09518"
          id="text16"
-         transform="rotate(-180)"
+         transform="rotate(-90)"
          inkscape:label="safariRoomText"><tspan
            sodipodi:role="line"
            id="tspan16"
            style="stroke-width:0.264583"
-           x="-183.09518"
-           y="-76.012833">Safari Room</tspan></text>
+           x="-76.012833"
+           y="183.09518">Safari Room</tspan></text>
     </g>
     <g
        id="g20"
        inkscape:label="gemmaRoomGroup"
-       sodipodi:insensitive="true">
+       transform="rotate(90,151.93469,151.01996)">
       <rect
          style="fill:#000000;stroke-width:0.264583"
          id="rect4"
@@ -115,21 +112,21 @@
       <text
          xml:space="preserve"
          style="font-size:7.05556px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#ffffff;stroke-width:0.264583"
-         x="-117.63396"
-         y="-69.547523"
+         x="-69.547523"
+         y="117.63396"
          id="text14"
-         transform="rotate(-180)"
+         transform="rotate(-90)"
          inkscape:label="gemmaRoomText"><tspan
            sodipodi:role="line"
            id="tspan14"
            style="stroke-width:0.264583"
-           x="-117.63396"
-           y="-69.547523">Gemma Room</tspan></text>
+           x="-69.547523"
+           y="117.63396">Gemma Room</tspan></text>
     </g>
     <g
        id="g19"
        inkscape:label="socRoomGroup"
-       sodipodi:insensitive="true">
+       transform="rotate(90,152.94489,150.10602)">
       <rect
          style="fill:#000000;stroke-width:0.264583"
          id="rect6"
@@ -141,21 +138,21 @@
       <text
          xml:space="preserve"
          style="font-size:7.05556px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#ffffff;stroke-width:0.264583"
-         x="-76.821709"
-         y="-63.082222"
+         x="-63.082222"
+         y="76.821709"
          id="text13"
-         transform="rotate(-180)"
+         transform="rotate(-90)"
          inkscape:label="socRoomText"><tspan
            sodipodi:role="line"
            id="tspan13"
            style="stroke-width:0.264583"
-           x="-76.821709"
-           y="-63.082222">SOC Room</tspan></text>
+           x="-63.082222"
+           y="76.821709">SOC Room</tspan></text>
     </g>
     <g
        id="g17"
        inkscape:label="seating1Group"
-       sodipodi:insensitive="true">
+       transform="rotate(90,147.69183,149.10612)">
       <rect
          style="fill:#1a1a1a;stroke-width:0.264583"
          id="rect7"
@@ -167,21 +164,21 @@
       <text
          xml:space="preserve"
          style="font-size:7.05556px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#ffffff;stroke-width:0.264583"
-         x="-95.409462"
-         y="-227.54344"
+         x="-227.54344"
+         y="95.409462"
          id="text12"
-         transform="rotate(-180)"
+         transform="rotate(-90)"
          inkscape:label="seating1Text"><tspan
            sodipodi:role="line"
            id="tspan12"
            style="stroke-width:0.264583"
-           x="-95.409462"
-           y="-227.54344">Seating Area 1</tspan></text>
+           x="-227.54344"
+           y="95.409462">Seating Area 1</tspan></text>
     </g>
     <g
        id="g18"
        inkscape:label="seating2Group"
-       sodipodi:insensitive="true">
+       transform="matrix(0,1,-1.0883281,0,306.42581,0.60611)">
       <rect
          style="fill:#000000;stroke-width:0.264583"
          id="rect9"
@@ -193,21 +190,21 @@
       <text
          xml:space="preserve"
          style="font-size:7.05556px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#ffffff;stroke-width:0.264583"
-         x="-24.291094"
-         y="-108.33936"
+         x="-108.33936"
+         y="24.291094"
          id="text11"
-         transform="rotate(-180)"
+         transform="rotate(-90)"
          inkscape:label="seating2Text"><tspan
            sodipodi:role="line"
            id="tspan11"
            style="stroke-width:0.264583"
-           x="-24.291094"
-           y="-108.33936">Seating Area 2</tspan></text>
+           x="-108.33936"
+           y="24.291094">Seating Area 2</tspan></text>
     </g>
     <g
        id="g16"
        inkscape:label="breakoutRoomGroup"
-       sodipodi:insensitive="true">
+       transform="rotate(90,149.10612,150.52038)">
       <rect
          style="fill:#000000;stroke-width:0.348692"
          id="rect1"
@@ -219,18 +216,16 @@
       <text
          xml:space="preserve"
          style="font-size:7.05556px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#ffffff;stroke-width:0.264583"
-         x="-29.948236"
-         y="-261.4863"
+         x="-261.4863"
+         y="29.948236"
          id="text10"
-         transform="rotate(-180)"
+         transform="rotate(-90)"
          inkscape:label="breakoutRoomText"><tspan
            sodipodi:role="line"
            id="tspan10"
            style="stroke-width:0.264583"
-           x="-29.948236"
-           y="-261.4863">Breakout Room</tspan></text>
+           x="-261.4863"
+           y="29.948236">Breakout Room</tspan></text>
     </g>
-  </g>
-  </g>
   </g>
 </svg>

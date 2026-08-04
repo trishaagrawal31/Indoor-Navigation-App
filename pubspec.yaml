@@ -12,6 +12,10 @@ dependencies:
   flutter_reactive_ble: ^5.3.1
   flutter_svg: ^2.0.10
 
+dependency_overrides:
+  reactive_ble_mobile:
+    path: local_packages/reactive_ble_mobile
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

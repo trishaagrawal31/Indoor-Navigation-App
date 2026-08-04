@@ -220,12 +220,11 @@ packages:
     source: hosted
     version: "6.0.0"
   reactive_ble_mobile:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: reactive_ble_mobile
-      sha256: "53c1e589d352690be8441960c00fb006dcf77baeb0f7414be4d9764454fcecf9"
-      url: "https://pub.dev"
-    source: hosted
+      path: "local_packages/reactive_ble_mobile"
+      relative: true
+    source: path
     version: "5.5.0"
   reactive_ble_platform_interface:
     dependency: transitive
@@ -354,4 +353,4 @@ packages:
     version: "7.0.1"
 sdks:
   dart: ">=3.11.0 <4.0.0"
-  flutter: ">=3.41.0"
+  flutter: ">=3.35.0"
