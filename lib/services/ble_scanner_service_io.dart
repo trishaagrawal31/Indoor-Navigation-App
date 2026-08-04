@@ -9,28 +9,24 @@ class _TimedRssi {
   _TimedRssi(this.time, this.rssi);
 }
 
-/// Scans for nearby BLE beacons and emits a rolling 3s average RSSI per
-/// device id. Consumers (see [ZoneSnapService]) turn this into a location.
 class BleScannerService {
   BleScannerService({
     FlutterReactiveBle? ble,
     this.rollingWindow = const Duration(seconds: 3),
-  }) : _ble = ble;
+  }) : _ble = (Platform.isAndroid || Platform.isIOS)
+            ? (ble ?? FlutterReactiveBle())
+            : null;
 
-  FlutterReactiveBle? _ble;
+  final FlutterReactiveBle? _ble;
   final Duration rollingWindow;
 
   final Map<String, List<_TimedRssi>> _readings = {};
   final _rssiController = StreamController<Map<String, double>>.broadcast();
   StreamSubscription<DiscoveredDevice>? _scanSub;
 
-  /// Averaged RSSI per BLE device id, updated on every scan result.
   Stream<Map<String, double>> get rssiStream => _rssiController.stream;
 
   void startScan() {
-    if (_ble == null && (Platform.isAndroid || Platform.isIOS)) {
-      _ble = FlutterReactiveBle();
-    }
     if (_ble == null) return;
     _scanSub?.cancel();
     _scanSub = _ble!.scanForDevices(withServices: []).listen(_onDeviceSeen);

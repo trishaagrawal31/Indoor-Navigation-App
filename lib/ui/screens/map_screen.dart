@@ -53,7 +53,12 @@ class _MapScreenState extends State<MapScreen> {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        SvgPicture.asset(storeMap.mapAsset, fit: BoxFit.contain),
+                        SvgPicture.asset(
+                          storeMap.mapAsset,
+                          fit: BoxFit.contain,
+                          placeholderBuilder: (context) => const Center(child: CircularProgressIndicator()),
+                          semanticsLabel: 'Store map',
+                        ),
                         CustomPaint(
                           painter: MapPainter(
                             mapSize: Size(storeMap.mapWidth, storeMap.mapHeight),

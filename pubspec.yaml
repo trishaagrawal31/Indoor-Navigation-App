@@ -21,4 +21,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/store_data.json
-    - assets/map.svg
+    - assets/floorMap.svg

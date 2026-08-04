@@ -1,7 +1,7 @@
 {
-  "mapAsset": "assets/map.svg",
-  "mapWidth": 400,
-  "mapHeight": 300,
+  "mapAsset": "assets/floorMap.svg",
+  "mapWidth": 210,
+  "mapHeight": 297,
   "beacons": [
     { "id": "b1", "bleId": "AA:AA:AA:AA:AA:01", "name": "Aisle 1", "x": 40, "y": 40 },
     { "id": "b2", "bleId": "AA:AA:AA:AA:AA:02", "name": "Aisle 2", "x": 160, "y": 40 },

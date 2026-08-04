@@ -24,23 +24,40 @@ class MapPainter extends CustomPainter {
 
     if (path.length > 1) {
       final routePaint = Paint()
-        ..color = Colors.blue
-        ..strokeWidth = 4
+        ..color = const Color(0xFF1E88E5)
+        ..strokeWidth = 7
         ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round;
-      final routePath = Path()..moveTo(scale(path.first.position).dx, scale(path.first.position).dy);
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      final shadowPaint = Paint()
+        ..color = Colors.black.withOpacity(0.18)
+        ..strokeWidth = 11
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+
+      final routePath = Path()
+        ..moveTo(scale(path.first.position).dx, scale(path.first.position).dy);
       for (final beacon in path.skip(1)) {
         final p = scale(beacon.position);
         routePath.lineTo(p.dx, p.dy);
       }
+
+      canvas.drawPath(routePath, shadowPaint);
       canvas.drawPath(routePath, routePaint);
+
+      for (final beacon in path) {
+        final p = scale(beacon.position);
+        canvas.drawCircle(p, 6.5, Paint()..color = Colors.white);
+        canvas.drawCircle(p, 4.5, Paint()..color = const Color(0xFF0D47A1));
+      }
     }
 
     final user = userLocation;
     if (user != null) {
       final p = scale(user.position);
-      canvas.drawCircle(p, 9, Paint()..color = Colors.white);
-      canvas.drawCircle(p, 7, Paint()..color = Colors.redAccent);
+      canvas.drawCircle(p, 10, Paint()..color = Colors.white);
+      canvas.drawCircle(p, 7.5, Paint()..color = Colors.redAccent);
     }
   }
 
