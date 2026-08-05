@@ -1,16 +1,17 @@
 {
   "mapAsset": "assets/floorMap.svg",
-  "mapWidth": 210,
-  "mapHeight": 297,
+  "mapWidth": 297,
+  "mapHeight": 210,
   "beacons": [
-    { "id": "b1", "bleId": "01020304-0506-0708-090a-0b0c0d0e0f10", "name": "Aisle 1", "x": 40, "y": 40 },
-    { "id": "b2", "bleId": "AA:AA:AA:AA:AA:02", "name": "Aisle 2", "x": 160, "y": 40 },
-    { "id": "b3", "bleId": "AA:AA:AA:AA:AA:03", "name": "Aisle 3", "x": 280, "y": 40 },
-    { "id": "b4", "bleId": "AA:AA:AA:AA:AA:04", "name": "Checkout", "x": 160, "y": 220 }
+    { "id": "b1", "bleId": "01020304-0506-0708-090a-0b0c0d0e0f10", "name": "Breakout / Seating 1", "x": 70, "y": 51 },
+    { "id": "b2", "bleId": "00000000-0000-0000-0000-000000000002", "name": "Seating 1 / ChatGPT Room", "x": 119, "y": 147 },
+    { "id": "b3", "bleId": "00000000-0000-0000-0000-000000000003", "name": "Safari / Gemma Room", "x": 251, "y": 146 },
+    { "id": "b4", "bleId": "00000000-0000-0000-0000-000000000004", "name": "SOC / Seating 2", "x": 258, "y": 43 }
   ],
   "edges": [
-    { "from": "b1", "to": "b2", "weight": 12 },
-    { "from": "b2", "to": "b3", "weight": 12 },
-    { "from": "b2", "to": "b4", "weight": 18 }
+    { "from": "b1", "to": "b2", "weight": 108 },
+    { "from": "b2", "to": "b3", "weight": 132 },
+    { "from": "b3", "to": "b4", "weight": 103 },
+    { "from": "b4", "to": "b1", "weight": 188 }
   ]
 }

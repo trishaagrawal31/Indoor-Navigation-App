@@ -57,6 +57,15 @@ class _MapScreenState extends State<MapScreen> {
                           storeMap.mapAsset,
                           fit: BoxFit.contain,
                           placeholderBuilder: (context) => const Center(child: CircularProgressIndicator()),
+                          errorBuilder: (context, error, stackTrace) => Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Text(
+                                'Failed to load ${storeMap.mapAsset}:\n$error',
+                                style: const TextStyle(color: Colors.red),
+                              ),
+                            ),
+                          ),
                           semanticsLabel: 'Store map',
                         ),
                         CustomPaint(

@@ -55,8 +55,9 @@ class StoreMap {
   }
 
   Beacon? beaconByBleId(String bleId) {
+    final normalized = bleId.toLowerCase();
     for (final b in beacons) {
-      if (b.bleId == bleId) return b;
+      if (b.bleId.toLowerCase() == normalized) return b;
     }
     return null;
   }
