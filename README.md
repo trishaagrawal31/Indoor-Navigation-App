@@ -52,25 +52,38 @@ are not enough, the app must also request them at runtime:
 ## Wiring real beacons
 
 Edit `assets/store_data.json`:
-- `beacons[].bleId` must be the beacon's Bluetooth **MAC address**, matched
-  against `DiscoveredDevice.id` in `BleScannerService._onDeviceSeen`
-  (`lib/services/ble_scanner_service.dart`). Only `b1` currently has a real
-  MAC (confirmed detected in a scan log); `b2`–`b4` still have obviously-fake
-  placeholder MACs (`00:00:00:00:00:0N`) — replace those once you confirm
-  those beacons' real addresses (e.g. via a generic BLE scanner app, or by
-  reading `BleScannerService`'s `[BLE]` debug log — see below).
-- If your beacon instead advertises standard iBeacon manufacturer data
-  (`4c 00 02 15 ...`), `parseIBeaconUuid` in `ble_scanner_service.dart` can
-  extract its proximity UUID — swap the key `_onDeviceSeen` stores readings
-  under from `device.id` to that UUID. None of the beacons tested so far
-  broadcast that format (see the `[BLE]` log — everything nearby was `4c 00
-  10.../12...` Apple Continuity frames from phones/wearables, not `4c 00 02
-  15`), which is why MAC matching is what's wired up right now.
+- `beacons[].bleId` is the beacon's iBeacon identity as
+  `"uuid:major:minor"`, e.g. `"01020304-0506-0708-090a-0b0c0d0e0f10:256:1"`
+  — matched by `parseIBeacon()` in `lib/services/ble_scanner_service.dart`,
+  which decodes the UUID/major/minor straight out of the advertisement's
+  manufacturer data. A beacon fleet commonly shares one UUID and is
+  differentiated only by minor, so the UUID alone isn't a safe key — always
+  set all three. Confirmed working for `b1` (verified against nRF Connect's
+  raw advertisement view: Company `Apple, Inc. <0x004C>`, Type `Beacon
+  <0x02>`, UUID `01020304-...`, Major `256`, Minor `1`); `b2`–`b4` currently
+  guess the same UUID/major with minors `2`–`4` as placeholders — replace
+  once you confirm each physical beacon's actual minor (e.g. via nRF
+  Connect, or the `[BLE]` debug log below).
 - `BleScannerService._onDeviceSeen` currently has a **temporary debug
   `debugPrint`** that dumps every advertisement seen (id, rssi, raw
-  manufacturer data, service data/UUIDs) — useful for finding a beacon's
-  real MAC or diagnosing why it isn't showing up. Remove it once detection
-  is confirmed working end-to-end.
+  manufacturer data, service data/UUIDs, and the parsed iBeacon if any) —
+  useful for finding a beacon's real major/minor or diagnosing why it isn't
+  showing up. Remove it once detection is confirmed working end-to-end.
+- **If a beacon still doesn't show up**, check `local_packages/reactive_ble_mobile/android/.../ble/ReactiveBleClient.kt`'s
+  `scanForDevices` — it previously called `.setLegacy(false)` on
+  `ScanSettings.Builder`, which tells Android to report only Bluetooth 5
+  extended-advertising results and silently drop legacy-format ones. iBeacon
+  is a legacy-only format, so that one line made every iBeacon invisible to
+  this app while still letting BLE5 devices (most modern phones/wearables)
+  through — which is exactly why a scan log could show 100+ nearby devices
+  and still miss the one beacon that mattered. It's been removed; if it
+  reappears (e.g. from re-vendoring the plugin), take it back out. This is
+  **native Android code** — changes here need a full rebuild, not hot
+  reload/restart.
+- `BleScannerService.startScan()` also explicitly requests
+  `ScanMode.lowLatency` rather than the library's `balanced` default, for a
+  higher scan duty cycle — matters for beacons with a sparse advertising
+  interval.
 - `beacons[].x/y` and `mapWidth`/`mapHeight` are in the same coordinate
   space as `assets/floorMap.svg`'s `viewBox` (currently `0 0 297 210`).
 - `beacons[].x/y` for `b1`–`b4` are **estimated** corridor positions,

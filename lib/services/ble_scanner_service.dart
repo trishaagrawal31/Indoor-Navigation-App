@@ -12,17 +12,14 @@ class _TimedRssi {
   _TimedRssi(this.time, this.rssi);
 }
 
-/// Scans for nearby BLE beacons and emits a rolling 3s average RSSI per
-/// device address. Consumers (see [ZoneSnapService]) turn this into a
-/// location.
+/// Scans for nearby iBeacons and emits a rolling 3s average RSSI per beacon
+/// (proximity UUID + major + minor). Consumers (see [ZoneSnapService]) turn
+/// this into a location.
 ///
-/// Beacons are matched by [DiscoveredDevice.id] — on Android this is the
-/// advertiser's Bluetooth MAC, which is stable for dedicated beacon hardware
-/// (unlike phones/wearables, which usually rotate a random address for
-/// privacy). If a beacon instead advertises standard iBeacon manufacturer
-/// data, [parseIBeaconUuid] is still available to key on its proximity UUID
-/// instead — swap the key in [_onDeviceSeen] if you confirm that's what your
-/// hardware sends.
+/// Beacons are matched by the identity carried inside the iBeacon
+/// manufacturer data, not [DiscoveredDevice.id] (the scanning radio's MAC) —
+/// a fleet of beacons commonly shares one proximity UUID and is
+/// differentiated only by major/minor, so the UUID alone isn't a unique key.
 class BleScannerService {
   BleScannerService({
     FlutterReactiveBle? ble,
@@ -37,7 +34,8 @@ class BleScannerService {
   final _errorController = StreamController<String>.broadcast();
   StreamSubscription<DiscoveredDevice>? _scanSub;
 
-  /// Averaged RSSI per device MAC address, updated on every scan result.
+  /// Averaged RSSI per beacon identity ("uuid:major:minor"), updated on
+  /// every scan result.
   Stream<Map<String, double>> get rssiStream => _rssiController.stream;
 
   /// Human-readable reasons scanning couldn't start or was interrupted —
@@ -59,7 +57,12 @@ class BleScannerService {
     }
 
     _scanSub?.cancel();
-    _scanSub = _ble!.scanForDevices(withServices: []).listen(
+    // lowLatency maximizes scan duty cycle (vs the balanced/lowPower
+    // defaults), which matters for beacons with a sparse advertising
+    // interval — nRF Connect and similar dedicated scanner apps tend to
+    // scan more aggressively by default, which is why they can see a
+    // beacon our previous default scan mode missed.
+    _scanSub = _ble!.scanForDevices(withServices: [], scanMode: ScanMode.lowLatency).listen(
           _onDeviceSeen,
           onError: (Object e) => _errorController.add('BLE scan error: $e'),
         );
@@ -92,23 +95,25 @@ class BleScannerService {
   }
 
   void _onDeviceSeen(DiscoveredDevice device) {
-    final uuid = parseIBeaconUuid(device.manufacturerData);
+    final beacon = parseIBeacon(device.manufacturerData);
 
-    // TEMPORARY DIAGNOSTIC LOGGING — remove once a real device is confirmed
-    // detected. Dumps every BLE advertisement seen, regardless of whether it
-    // parsed as an iBeacon, so you can see in `flutter run`'s console
-    // exactly what your beacon actually broadcasts (id, rssi, raw
-    // manufacturer data, and any service data / advertised service UUIDs).
+    // TEMPORARY DIAGNOSTIC LOGGING — remove once detection is confirmed
+    // working end-to-end. Dumps every BLE advertisement seen, regardless of
+    // whether it parsed as an iBeacon, so you can see in `flutter run`'s
+    // console exactly what's nearby (id, rssi, raw manufacturer data, and
+    // any service data / advertised service UUIDs).
     debugPrint(
       '[BLE] id=${device.id} name="${device.name}" rssi=${device.rssi} '
       'manufacturerData=${_hex(device.manufacturerData)} '
       'serviceUuids=${device.serviceUuids} '
       'serviceData=${device.serviceData.map((k, v) => MapEntry(k, _hex(v)))} '
-      'parsedIBeaconUuid=$uuid',
+      'parsedIBeacon=$beacon',
     );
 
+    if (beacon == null) return; // Not an iBeacon advertisement — ignore.
+
     final now = DateTime.now();
-    final history = _readings.putIfAbsent(device.id, () => []);
+    final history = _readings.putIfAbsent(beacon.key, () => []);
     history.add(_TimedRssi(now, device.rssi));
     history.removeWhere((r) => now.difference(r.time) > rollingWindow);
 
@@ -143,11 +148,24 @@ class BleScannerService {
 
 String _hex(Uint8List bytes) => bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
 
-/// Extracts the proximity UUID from an iBeacon advertisement's manufacturer
-/// data (Apple company id 0x004C, iBeacon type 0x02), or null if [data]
-/// isn't a valid iBeacon payload. Returns a lowercase, hyphenated UUID
-/// string, e.g. "01020304-0506-0708-090a-0b0c0d0e0f10".
-String? parseIBeaconUuid(Uint8List data) {
+class IBeacon {
+  final String uuid;
+  final int major;
+  final int minor;
+  const IBeacon({required this.uuid, required this.major, required this.minor});
+
+  /// Store-data-compatible identity string, e.g.
+  /// "01020304-0506-0708-090a-0b0c0d0e0f10:256:1".
+  String get key => '$uuid:$major:$minor';
+
+  @override
+  String toString() => key;
+}
+
+/// Parses an iBeacon advertisement's manufacturer data (Apple company id
+/// 0x004C, iBeacon type 0x02) into its proximity UUID, major, and minor, or
+/// null if [data] isn't a valid iBeacon payload.
+IBeacon? parseIBeacon(Uint8List data) {
   if (data.length < 24) return null;
   final isAppleCompanyId = data[0] == 0x4C && data[1] == 0x00;
   final isIBeaconType = data[2] == 0x02 && data[3] == 0x15;
@@ -155,6 +173,9 @@ String? parseIBeaconUuid(Uint8List data) {
 
   final uuidBytes = data.sublist(4, 20);
   final hex = uuidBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-  return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-'
+  final uuid = '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-'
       '${hex.substring(16, 20)}-${hex.substring(20, 32)}';
+  final major = (data[20] << 8) | data[21];
+  final minor = (data[22] << 8) | data[23];
+  return IBeacon(uuid: uuid, major: major, minor: minor);
 }
