@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io' show Platform;
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -90,6 +91,20 @@ class BleScannerService {
 
   void _onDeviceSeen(DiscoveredDevice device) {
     final uuid = parseIBeaconUuid(device.manufacturerData);
+
+    // TEMPORARY DIAGNOSTIC LOGGING — remove once a real device is confirmed
+    // detected. Dumps every BLE advertisement seen, regardless of whether it
+    // parsed as an iBeacon, so you can see in `flutter run`'s console
+    // exactly what your beacon actually broadcasts (id, rssi, raw
+    // manufacturer data, and any service data / advertised service UUIDs).
+    debugPrint(
+      '[BLE] id=${device.id} name="${device.name}" rssi=${device.rssi} '
+      'manufacturerData=${_hex(device.manufacturerData)} '
+      'serviceUuids=${device.serviceUuids} '
+      'serviceData=${device.serviceData.map((k, v) => MapEntry(k, _hex(v)))} '
+      'parsedIBeaconUuid=$uuid',
+    );
+
     if (uuid == null) return; // Not an iBeacon advertisement — ignore.
 
     final now = DateTime.now();
@@ -125,6 +140,8 @@ class BleScannerService {
     _errorController.close();
   }
 }
+
+String _hex(Uint8List bytes) => bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
 
 /// Extracts the proximity UUID from an iBeacon advertisement's manufacturer
 /// data (Apple company id 0x004C, iBeacon type 0x02), or null if [data]
