@@ -79,6 +79,10 @@ open class ReactiveBleClient(private val context: Context) : BleClient {
                 .setScanMode(scanMode.toScanSettings())
                 .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
                 .setShouldCheckLocationServicesState(requireLocationServicesEnabled)
+                // Explicit, not relying on RxAndroidBle's own default: iBeacon is a
+                // legacy-only advertising format (confirmed via nRF Connect for the
+                // beacon this app failed to detect), so legacy PDUs must be included.
+                .setLegacy(true)
                 .build(),
             *filters,
         )
