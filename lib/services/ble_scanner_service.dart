@@ -12,15 +12,17 @@ class _TimedRssi {
   _TimedRssi(this.time, this.rssi);
 }
 
-/// Scans for nearby iBeacons and emits a rolling 3s average RSSI per
-/// iBeacon proximity UUID. Consumers (see [ZoneSnapService]) turn this into
-/// a location.
+/// Scans for nearby BLE beacons and emits a rolling 3s average RSSI per
+/// device address. Consumers (see [ZoneSnapService]) turn this into a
+/// location.
 ///
-/// Beacons are matched by the proximity UUID carried inside the BLE
-/// advertisement's manufacturer data, NOT by [DiscoveredDevice.id] — that id
-/// is the scanning OS's address for the radio (a MAC on Android, an
-/// OS-assigned identifier on iOS), which has no relationship to the iBeacon
-/// UUID configured on the physical beacon.
+/// Beacons are matched by [DiscoveredDevice.id] — on Android this is the
+/// advertiser's Bluetooth MAC, which is stable for dedicated beacon hardware
+/// (unlike phones/wearables, which usually rotate a random address for
+/// privacy). If a beacon instead advertises standard iBeacon manufacturer
+/// data, [parseIBeaconUuid] is still available to key on its proximity UUID
+/// instead — swap the key in [_onDeviceSeen] if you confirm that's what your
+/// hardware sends.
 class BleScannerService {
   BleScannerService({
     FlutterReactiveBle? ble,
@@ -35,7 +37,7 @@ class BleScannerService {
   final _errorController = StreamController<String>.broadcast();
   StreamSubscription<DiscoveredDevice>? _scanSub;
 
-  /// Averaged RSSI per iBeacon proximity UUID, updated on every scan result.
+  /// Averaged RSSI per device MAC address, updated on every scan result.
   Stream<Map<String, double>> get rssiStream => _rssiController.stream;
 
   /// Human-readable reasons scanning couldn't start or was interrupted —
@@ -105,10 +107,8 @@ class BleScannerService {
       'parsedIBeaconUuid=$uuid',
     );
 
-    if (uuid == null) return; // Not an iBeacon advertisement — ignore.
-
     final now = DateTime.now();
-    final history = _readings.putIfAbsent(uuid, () => []);
+    final history = _readings.putIfAbsent(device.id, () => []);
     history.add(_TimedRssi(now, device.rssi));
     history.removeWhere((r) => now.difference(r.time) > rollingWindow);
 

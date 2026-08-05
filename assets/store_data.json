@@ -3,10 +3,10 @@
   "mapWidth": 297,
   "mapHeight": 210,
   "beacons": [
-    { "id": "b1", "bleId": "01020304-0506-0708-090a-0b0c0d0e0f10", "name": "Breakout / Seating 1", "x": 70, "y": 51 },
-    { "id": "b2", "bleId": "00000000-0000-0000-0000-000000000002", "name": "Seating 1 / ChatGPT Room", "x": 119, "y": 147 },
-    { "id": "b3", "bleId": "00000000-0000-0000-0000-000000000003", "name": "Safari / Gemma Room", "x": 251, "y": 146 },
-    { "id": "b4", "bleId": "00000000-0000-0000-0000-000000000004", "name": "SOC / Seating 2", "x": 258, "y": 43 }
+    { "id": "b1", "bleId": "33:8F:98:F9:64:1B", "name": "Breakout / Seating 1", "x": 70, "y": 51 },
+    { "id": "b2", "bleId": "00:00:00:00:00:02", "name": "Seating 1 / ChatGPT Room", "x": 119, "y": 147 },
+    { "id": "b3", "bleId": "00:00:00:00:00:03", "name": "Safari / Gemma Room", "x": 251, "y": 146 },
+    { "id": "b4", "bleId": "00:00:00:00:00:04", "name": "SOC / Seating 2", "x": 258, "y": 43 }
   ],
   "edges": [
     { "from": "b1", "to": "b2", "weight": 108 },

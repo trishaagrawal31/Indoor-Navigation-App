@@ -52,15 +52,25 @@ are not enough, the app must also request them at runtime:
 ## Wiring real beacons
 
 Edit `assets/store_data.json`:
-- `beacons[].bleId` must be the beacon's **iBeacon proximity UUID** (the
-  UUID configured on the physical beacon / in its vendor app), not a
-  Bluetooth MAC address — `BleScannerService` parses this out of the
-  advertisement's manufacturer data (`lib/services/ble_scanner_service.dart`,
-  `parseIBeaconUuid`). Only `b1` currently has a real UUID (confirmed
-  working); `b2`–`b4` still have obviously-fake placeholder UUIDs
-  (`00000000-...-0000000000N`) — replace those once you deploy those
-  beacons. If your beacons broadcast major/minor values instead of distinct
-  UUIDs, you'll need to extend the parser to key on UUID+major+minor.
+- `beacons[].bleId` must be the beacon's Bluetooth **MAC address**, matched
+  against `DiscoveredDevice.id` in `BleScannerService._onDeviceSeen`
+  (`lib/services/ble_scanner_service.dart`). Only `b1` currently has a real
+  MAC (confirmed detected in a scan log); `b2`–`b4` still have obviously-fake
+  placeholder MACs (`00:00:00:00:00:0N`) — replace those once you confirm
+  those beacons' real addresses (e.g. via a generic BLE scanner app, or by
+  reading `BleScannerService`'s `[BLE]` debug log — see below).
+- If your beacon instead advertises standard iBeacon manufacturer data
+  (`4c 00 02 15 ...`), `parseIBeaconUuid` in `ble_scanner_service.dart` can
+  extract its proximity UUID — swap the key `_onDeviceSeen` stores readings
+  under from `device.id` to that UUID. None of the beacons tested so far
+  broadcast that format (see the `[BLE]` log — everything nearby was `4c 00
+  10.../12...` Apple Continuity frames from phones/wearables, not `4c 00 02
+  15`), which is why MAC matching is what's wired up right now.
+- `BleScannerService._onDeviceSeen` currently has a **temporary debug
+  `debugPrint`** that dumps every advertisement seen (id, rssi, raw
+  manufacturer data, service data/UUIDs) — useful for finding a beacon's
+  real MAC or diagnosing why it isn't showing up. Remove it once detection
+  is confirmed working end-to-end.
 - `beacons[].x/y` and `mapWidth`/`mapHeight` are in the same coordinate
   space as `assets/floorMap.svg`'s `viewBox` (currently `0 0 297 210`).
 - `beacons[].x/y` for `b1`–`b4` are **estimated** corridor positions,
