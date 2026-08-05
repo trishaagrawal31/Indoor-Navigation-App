@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -15,10 +17,24 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
+  StreamSubscription<String>? _scanErrorSub;
+
   @override
   void initState() {
     super.initState();
     widget.controller.start();
+    _scanErrorSub = widget.controller.bleScanner.errors.listen((message) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _scanErrorSub?.cancel();
+    super.dispose();
   }
 
   @override

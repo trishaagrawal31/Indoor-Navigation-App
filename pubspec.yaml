@@ -11,6 +11,7 @@ dependencies:
     sdk: flutter
   flutter_reactive_ble: ^5.3.1
   flutter_svg: ^2.0.10
+  permission_handler: ^11.3.1
 
 dependency_overrides:
   reactive_ble_mobile:

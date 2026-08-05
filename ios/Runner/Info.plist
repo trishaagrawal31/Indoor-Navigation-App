@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>This app scans for nearby BLE beacons to determine which aisle/zone you're in for indoor navigation.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>This app scans for nearby BLE beacons to determine which aisle/zone you're in for indoor navigation.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -1,4 +1,18 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Android 12+ (API 31+): required to scan for and read data from BLE
+         advertisements. Not marked neverForLocation because this app derives
+         the user's zone from beacon RSSI, which Android treats as a
+         location-adjacent use. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- Pre-Android 12 (API < 31): legacy Bluetooth permissions. -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <!-- Pre-Android 12 requires location permission to receive BLE scan
+         results at all; since BLUETOOTH_SCAN above isn't neverForLocation,
+         Android 12+ also expects this to be requested at runtime. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
     <application
         android:label="indoor_nav"
         android:name="${applicationName}"

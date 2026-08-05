@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'dart:typed_data';
 
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class _TimedRssi {
   final DateTime time;
@@ -30,18 +31,61 @@ class BleScannerService {
 
   final Map<String, List<_TimedRssi>> _readings = {};
   final _rssiController = StreamController<Map<String, double>>.broadcast();
+  final _errorController = StreamController<String>.broadcast();
   StreamSubscription<DiscoveredDevice>? _scanSub;
 
   /// Averaged RSSI per iBeacon proximity UUID, updated on every scan result.
   Stream<Map<String, double>> get rssiStream => _rssiController.stream;
 
-  void startScan() {
+  /// Human-readable reasons scanning couldn't start or was interrupted —
+  /// e.g. a denied permission or disabled Bluetooth adapter. Surfaced here
+  /// instead of failing silently, since a scan that finds nothing looks
+  /// identical to a scan that never started.
+  Stream<String> get errors => _errorController.stream;
+
+  Future<void> startScan() async {
     if (_ble == null && (Platform.isAndroid || Platform.isIOS)) {
       _ble = FlutterReactiveBle();
     }
     if (_ble == null) return;
+
+    final permissionError = await _ensurePermissions();
+    if (permissionError != null) {
+      _errorController.add(permissionError);
+      return;
+    }
+
     _scanSub?.cancel();
-    _scanSub = _ble!.scanForDevices(withServices: []).listen(_onDeviceSeen);
+    _scanSub = _ble!.scanForDevices(withServices: []).listen(
+          _onDeviceSeen,
+          onError: (Object e) => _errorController.add('BLE scan error: $e'),
+        );
+  }
+
+  /// Requests the permissions BLE scanning needs on this platform. Returns
+  /// null if everything required is granted, otherwise a message describing
+  /// what's missing.
+  Future<String?> _ensurePermissions() async {
+    if (Platform.isAndroid) {
+      final statuses = await [
+        Permission.bluetoothScan,
+        Permission.bluetoothConnect,
+        Permission.locationWhenInUse,
+      ].request();
+      final denied = statuses.entries.where((e) => !e.value.isGranted).map((e) => e.key.toString());
+      if (denied.isNotEmpty) {
+        return 'Missing permissions: ${denied.join(', ')}. Grant them in system settings.';
+      }
+      return null;
+    }
+    if (Platform.isIOS) {
+      final status = await Permission.bluetooth.request();
+      if (!status.isGranted) {
+        return 'Bluetooth permission denied. Grant it in Settings > Privacy > Bluetooth.';
+      }
+      return null;
+    }
+    return null;
   }
 
   void _onDeviceSeen(DiscoveredDevice device) {
@@ -78,6 +122,7 @@ class BleScannerService {
   void dispose() {
     stopScan();
     _rssiController.close();
+    _errorController.close();
   }
 }
 

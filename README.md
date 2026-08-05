@@ -26,23 +26,28 @@ assets/
 
 ## Setup
 
-This directory currently has only the Dart source, not a full Flutter
-project scaffold (no `android/`/`ios/` folders). Generate those with:
-
 ```
-flutter create .
 flutter pub get
 ```
 
-BLE requires platform permissions that `flutter create` won't add for you:
+### BLE permissions
 
-- **Android** (`android/app/src/main/AndroidManifest.xml`): add
-  `BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT`, and (for scan results on most
-  devices) `ACCESS_FINE_LOCATION`.
-- **iOS** (`ios/Runner/Info.plist`): add `NSBluetoothAlwaysUsageDescription`.
+Declared already, but both layers matter — the manifest/plist entries alone
+are not enough, the app must also request them at runtime:
 
-See the [flutter_reactive_ble](https://pub.dev/packages/flutter_reactive_ble)
-docs for exact manifest/plist snippets.
+- **Android** (`android/app/src/main/AndroidManifest.xml`): `BLUETOOTH_SCAN`,
+  `BLUETOOTH_CONNECT`, `ACCESS_FINE_LOCATION` (plus legacy `BLUETOOTH` /
+  `BLUETOOTH_ADMIN` for API < 31, which the `flutter_reactive_ble` plugin's
+  own manifest already contributes).
+- **iOS** (`ios/Runner/Info.plist`): `NSBluetoothAlwaysUsageDescription` /
+  `NSBluetoothPeripheralUsageDescription`.
+- **Runtime request**: `BleScannerService.startScan()`
+  (`lib/services/ble_scanner_service.dart`) requests these via
+  `permission_handler` before scanning, and emits a message on
+  `BleScannerService.errors` if the user denies one — `MapScreen` shows
+  it as a `SnackBar`. If you deny a permission once, most OSes won't
+  prompt again automatically; grant it manually in system settings and
+  restart the app.
 
 ## Wiring real beacons
 
