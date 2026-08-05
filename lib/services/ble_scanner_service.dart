@@ -12,14 +12,19 @@ class _TimedRssi {
   _TimedRssi(this.time, this.rssi);
 }
 
-/// Scans for nearby iBeacons and emits a rolling 3s average RSSI per beacon
-/// (proximity UUID + major + minor). Consumers (see [ZoneSnapService]) turn
-/// this into a location.
+/// Scans for nearby beacons and emits a rolling 3s average RSSI per beacon
+/// identity. Consumers (see [ZoneSnapService]) turn this into a location.
 ///
-/// Beacons are matched by the identity carried inside the iBeacon
-/// manufacturer data, not [DiscoveredDevice.id] (the scanning radio's MAC) —
-/// a fleet of beacons commonly shares one proximity UUID and is
-/// differentiated only by major/minor, so the UUID alone isn't a unique key.
+/// A beacon's identity is derived in [_onDeviceSeen], preferring (in order):
+/// 1. iBeacon proximity UUID + major + minor, parsed from the
+///    advertisement's manufacturer data — the standard for dedicated beacon
+///    hardware, and unique even across a fleet sharing one UUID.
+/// 2. The first advertised 128-bit service UUID, for devices that
+///    advertise a distinctive service UUID but aren't iBeacon-formatted
+///    (e.g. as a stand-in beacon during testing, or hardware using a
+///    GATT-service-based scheme instead of iBeacon).
+/// Never [DiscoveredDevice.id] — that's the scanning radio's own address
+/// (a MAC on Android), unrelated to how a beacon identifies itself.
 class BleScannerService {
   BleScannerService({
     FlutterReactiveBle? ble,
@@ -96,24 +101,26 @@ class BleScannerService {
 
   void _onDeviceSeen(DiscoveredDevice device) {
     final beacon = parseIBeacon(device.manufacturerData);
+    final key = beacon?.key ??
+        (device.serviceUuids.isNotEmpty ? device.serviceUuids.first.toString().toLowerCase() : null);
 
     // TEMPORARY DIAGNOSTIC LOGGING — remove once detection is confirmed
     // working end-to-end. Dumps every BLE advertisement seen, regardless of
-    // whether it parsed as an iBeacon, so you can see in `flutter run`'s
-    // console exactly what's nearby (id, rssi, raw manufacturer data, and
-    // any service data / advertised service UUIDs).
+    // whether it resolved to a beacon identity, so you can see in
+    // `flutter run`'s console exactly what's nearby (id, rssi, raw
+    // manufacturer data, and any service data / advertised service UUIDs).
     debugPrint(
       '[BLE] id=${device.id} name="${device.name}" rssi=${device.rssi} '
       'manufacturerData=${_hex(device.manufacturerData)} '
       'serviceUuids=${device.serviceUuids} '
       'serviceData=${device.serviceData.map((k, v) => MapEntry(k, _hex(v)))} '
-      'parsedIBeacon=$beacon',
+      'parsedIBeacon=$beacon resolvedKey=$key',
     );
 
-    if (beacon == null) return; // Not an iBeacon advertisement — ignore.
+    if (key == null) return; // No iBeacon data and no service UUID to key on.
 
     final now = DateTime.now();
-    final history = _readings.putIfAbsent(beacon.key, () => []);
+    final history = _readings.putIfAbsent(key, () => []);
     history.add(_TimedRssi(now, device.rssi));
     history.removeWhere((r) => now.difference(r.time) > rollingWindow);
 
