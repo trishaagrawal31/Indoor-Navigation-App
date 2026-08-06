@@ -14,7 +14,7 @@ lib/
     store_data_repository.dart   Loads assets/store_data.json
     ble_scanner_service.dart     flutter_reactive_ble scan, 3s rolling RSSI avg
     motion_service.dart          pedometer + flutter_compass -> PDR position deltas
-    zone_snap_service.dart       Strongest RSSI -> nearest beacon
+    zone_snap_service.dart       RSSI-weighted multi-beacon centroid -> position + nearest beacon
     pathfinding_service.dart     Dijkstra over the beacon graph
     navigation_controller.dart   Wires the above into app state (ChangeNotifier)
   ui/
@@ -137,13 +137,29 @@ position, correcting drift. See `MotionService`
   handles the 0°/360° wraparound correctly) before using a heading for
   anything. Tune via the `alpha` default in `_smoothHeading` if turns feel
   too laggy (higher alpha) or still too jumpy (lower alpha).
-- **Proximity-gated recalibration**: `NavigationController` only hard-resets
-  `liveUserPosition` to a beacon's exact position when that beacon's RSSI
-  clears `_recalibrationMinRssi` (default `-70` dBm) — recalibrating off a
-  weak signal was the other source of visible jumping, since two
-  similar-strength weak beacons can flip "nearest" back and forth. Weak
-  fixes still update `currentBeacon` (for the "You are near" text and as
-  the pathfinding start) — only the live-arrow teleport is gated.
+- **Multi-beacon position estimate, not winner-take-all**: `ZoneSnapService`
+  used to snap `liveUserPosition` straight to whichever single beacon read
+  strongest — noisy indoors, since a farther beacon can transiently
+  out-read a closer one, which was exactly the "shows me at the wrong room"
+  symptom even with all 4 beacons correctly labeled. `estimatePosition` now
+  computes an RSSI-weighted centroid of *every* currently-visible beacon
+  (RSSI converted dBm → linear power via `10^(rssi/10)` so the weighting
+  tracks physical distance, not the log scale) — a single noisy strong
+  reading gets outvoted by the other beacons still in range instead of
+  winning outright. `nearestBeacon` (used for `currentBeacon`/pathfinding
+  start) is derived from that same centroid rather than the raw strongest
+  reading, so it inherits the same noise resistance.
+- **Continuous BLE correction, not teleport-on-flip**: `NavigationController`
+  used to only touch `liveUserPosition` when `currentBeacon` actually
+  changed zones, and then jumped straight to the new beacon's exact
+  position. It now eases `liveUserPosition` toward each new position
+  estimate every RSSI update (`Offset.lerp` with `_bleCorrectionFactor =
+  0.35`), independent of whether the zone label changed — PDR drift gets
+  corrected continuously instead of in discrete jumps at zone boundaries,
+  which is what makes the live position track more like a mall nav app's
+  blue dot. `currentBeacon` itself still only flips after
+  `_requiredConsecutiveReadings` (below), since the route/label are
+  discrete by nature (Dijkstra needs a beacon node to start from).
 - **Permissions**: step counting needs `ACTIVITY_RECOGNITION`
   (`AndroidManifest.xml`, API 29+) / `NSMotionUsageDescription`
   (`Info.plist`), requested at runtime by `MotionService.start()` the same

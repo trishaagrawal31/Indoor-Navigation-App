@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'dart:ui' show Offset;
 
 import 'package:flutter/foundation.dart';
@@ -28,15 +27,13 @@ class NavigationController extends ChangeNotifier {
     _headingSub = motionService.headingStream.listen(_onHeading);
   }
 
-  /// Only a beacon fix at least this strong (dBm) is trusted to
-  /// **recalibrate** the PDR position — i.e. actually snap
-  /// [liveUserPosition] to the beacon's exact location. `currentBeacon`
-  /// itself (used for the "You are near" text and as the pathfinding
-  /// start) still updates on any change, weak or not; this only gates the
-  /// harder "teleport the live arrow" behavior, which is what was making
-  /// the arrow visibly jump whenever two weak, similar-strength beacons
-  /// flapped back and forth as "nearest".
-  static const double _recalibrationMinRssi = -70.0;
+  /// How far (0-1) each new BLE position estimate (see
+  /// [ZoneSnapService.estimatePosition]) pulls [liveUserPosition] toward
+  /// it, rather than snapping straight to it. Weak/noisy estimates already
+  /// carry little weight in the centroid itself, so this just keeps the
+  /// *correction* gradual too — reads as continuously walking with drift
+  /// being nudged out, not a teleport, every time a fix arrives.
+  static const double _bleCorrectionFactor = 0.35;
 
   /// A newly-"nearest" beacon must win this many consecutive RSSI updates
   /// before it's actually committed to [currentBeacon] — a single noisy
@@ -64,10 +61,10 @@ class NavigationController extends ChangeNotifier {
   /// Total distance of [currentPath], in meters. Null when there's no route.
   double? currentDistanceMeters;
 
-  /// Live PDR-tracked position (map units) — reset to the current beacon's
-  /// position whenever a *strong* zone-snap fix comes in (see
-  /// [_recalibrationMinRssi]), and nudged forward by each detected step in
-  /// between. Null until the first fix or step.
+  /// Live PDR-tracked position (map units) — eased toward each new BLE
+  /// position estimate (see [_bleCorrectionFactor]) to correct drift, and
+  /// nudged forward by each detected step in between. Null until the
+  /// first fix or step.
   Offset? liveUserPosition;
 
   /// Live compass heading (degrees, 0 = North), for arrow rotation.
@@ -95,32 +92,39 @@ class NavigationController extends ChangeNotifier {
     final nearest = _zoneSnap.nearestBeacon(rssiByBleId, storeMap);
     if (nearest == null) return;
 
+    var beaconChanged = false;
     if (nearest.id == currentBeacon?.id) {
       _pendingBeaconId = null;
       _pendingBeaconCount = 0;
-      return;
-    }
-
-    // Require a candidate to win this many consecutive updates before
-    // committing to it — a single noisy RSSI reading was enough to flip
-    // zones otherwise.
-    if (nearest.id == _pendingBeaconId) {
-      _pendingBeaconCount++;
     } else {
-      _pendingBeaconId = nearest.id;
-      _pendingBeaconCount = 1;
+      // Require a candidate to win this many consecutive updates before
+      // committing to it — a single noisy RSSI reading was enough to flip
+      // zones otherwise.
+      if (nearest.id == _pendingBeaconId) {
+        _pendingBeaconCount++;
+      } else {
+        _pendingBeaconId = nearest.id;
+        _pendingBeaconCount = 1;
+      }
+      if (_pendingBeaconCount >= _requiredConsecutiveReadings) {
+        currentBeacon = nearest;
+        _pendingBeaconId = null;
+        _pendingBeaconCount = 0;
+        beaconChanged = true;
+      }
     }
-    if (_pendingBeaconCount < _requiredConsecutiveReadings) return;
+    if (beaconChanged) _recomputePath();
 
-    currentBeacon = nearest;
-    _pendingBeaconId = null;
-    _pendingBeaconCount = 0;
-    _recomputePath();
-
-    final strongestRssi = rssiByBleId.values.fold<double>(double.negativeInfinity, math.max);
-    if (strongestRssi >= _recalibrationMinRssi) {
-      liveUserPosition = nearest.position; // Anchor PDR drift back to a confident fix.
-      _lastSnappedEdge = null; // Fresh anchor — let the next step pick a natural starting edge.
+    // Blend toward the multi-beacon position estimate every update — not
+    // just on a zone flip — so BLE correction and PDR stepping both feed
+    // one continuously-moving position instead of PDR-drift-then-teleport.
+    final estimate = _zoneSnap.estimatePosition(rssiByBleId, storeMap);
+    if (estimate != null) {
+      final snapped = storeMap.snapToGraph(estimate, preferredEdge: _lastSnappedEdge);
+      liveUserPosition = liveUserPosition == null
+          ? snapped.point
+          : Offset.lerp(liveUserPosition, snapped.point, _bleCorrectionFactor);
+      _lastSnappedEdge = snapped.edge;
     }
 
     notifyListeners();

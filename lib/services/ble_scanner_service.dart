@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io' show Platform;
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -104,19 +103,6 @@ class BleScannerService {
     final key = beacon?.key ??
         (device.serviceUuids.isNotEmpty ? device.serviceUuids.first.toString().toLowerCase() : null);
 
-    // TEMPORARY DIAGNOSTIC LOGGING — remove once detection is confirmed
-    // working end-to-end. Dumps every BLE advertisement seen, regardless of
-    // whether it resolved to a beacon identity, so you can see in
-    // `flutter run`'s console exactly what's nearby (id, rssi, raw
-    // manufacturer data, and any service data / advertised service UUIDs).
-    debugPrint(
-      '[BLE] id=${device.id} name="${device.name}" rssi=${device.rssi} '
-      'manufacturerData=${_hex(device.manufacturerData)} '
-      'serviceUuids=${device.serviceUuids} '
-      'serviceData=${device.serviceData.map((k, v) => MapEntry(k, _hex(v)))} '
-      'parsedIBeacon=$beacon resolvedKey=$key',
-    );
-
     if (key == null) return; // No iBeacon data and no service UUID to key on.
 
     final now = DateTime.now();
@@ -152,8 +138,6 @@ class BleScannerService {
     _errorController.close();
   }
 }
-
-String _hex(Uint8List bytes) => bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
 
 class IBeacon {
   final String uuid;
