@@ -93,7 +93,16 @@ class _MapScreenState extends State<MapScreen> {
                   _PopularItemsGrid(storeMap: storeMap, items: topItems, onSelected: _selectItem),
                 ],
                 const SizedBox(height: 28),
-                const _SectionHeader(icon: Icons.map_outlined, label: 'Live map'),
+                _SectionHeader(
+                  icon: Icons.map_outlined,
+                  label: 'Live map',
+                  trailing: IconButton(
+                    icon: const Icon(Icons.refresh),
+                    tooltip: 'Clear route',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: controller.clearDestination,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 _StatusCard(controller: controller),
                 const SizedBox(height: 12),
@@ -109,10 +118,11 @@ class _MapScreenState extends State<MapScreen> {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.icon, required this.label});
+  const _SectionHeader({required this.icon, required this.label, this.trailing});
 
   final IconData icon;
   final String label;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -125,6 +135,7 @@ class _SectionHeader extends StatelessWidget {
           label,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
+        if (trailing != null) ...[const Spacer(), trailing!],
       ],
     );
   }
