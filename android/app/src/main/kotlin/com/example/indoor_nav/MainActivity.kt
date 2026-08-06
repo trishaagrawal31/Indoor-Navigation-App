@@ -50,9 +50,14 @@ class MainActivity : FlutterActivity() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
                 val bytes = result.scanRecord?.bytes
                 val hex = bytes?.joinToString(" ") { String.format("%02x", it) } ?: "null"
+                val connectable = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    result.isConnectable
+                } else {
+                    false
+                }
                 Log.i(
                     "RAWBLE",
-                    "id=${result.device.address} rssi=${result.rssi} connectable=${result.isConnectable} rawBytes=$hex",
+                    "id=${result.device.address} rssi=${result.rssi} connectable=$connectable rawBytes=$hex",
                 )
             }
 

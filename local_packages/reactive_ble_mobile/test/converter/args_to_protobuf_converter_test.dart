@@ -5,7 +5,7 @@ import 'package:reactive_ble_platform_interface/reactive_ble_platform_interface.
 
 void main() {
   group('$ArgsToProtobufConverter', () {
-    const _sut = ArgsToProtobufConverterImpl();
+    const sut = ArgsToProtobufConverterImpl();
 
     group('Connect to device args', () {
       const deviceId = '123';
@@ -23,7 +23,7 @@ void main() {
         group('And timeout is not null', () {
           setUp(() {
             timeout = const Duration(seconds: 2);
-            result = _sut.createConnectToDeviceArgs(
+            result = sut.createConnectToDeviceArgs(
                 deviceId, servicesToDiscover, timeout);
           });
 
@@ -48,7 +48,7 @@ void main() {
         group('And timeout is null', () {
           setUp(() {
             timeout = null;
-            result = _sut.createConnectToDeviceArgs(
+            result = sut.createConnectToDeviceArgs(
                 deviceId, servicesToDiscover, timeout);
           });
           test('It sets timeout to default value', () {
@@ -60,7 +60,7 @@ void main() {
       group('And servicesToDiscover is null', () {
         setUp(() {
           servicesToDiscover = null;
-          result = _sut.createConnectToDeviceArgs(
+          result = sut.createConnectToDeviceArgs(
               deviceId, servicesToDiscover, timeout);
         });
 
@@ -76,7 +76,7 @@ void main() {
       late pb.DisconnectFromDeviceRequest result;
 
       setUp(() {
-        result = _sut.createDisconnectDeviceArgs(deviceId);
+        result = sut.createDisconnectDeviceArgs(deviceId);
       });
 
       test('It sets correct device id', () {
@@ -100,7 +100,7 @@ void main() {
           deviceId: deviceId,
         );
 
-        result = _sut.createReadCharacteristicRequest(characteristic);
+        result = sut.createReadCharacteristicRequest(characteristic);
       });
 
       test('It converts the ids', () {
@@ -130,7 +130,7 @@ void main() {
           deviceId: deviceId,
         );
 
-        result = _sut.createWriteCharacteristicRequest(characteristic, value);
+        result = sut.createWriteCharacteristicRequest(characteristic, value);
       });
 
       test('It converts the ids', () {
@@ -162,7 +162,7 @@ void main() {
           deviceId: deviceId,
         );
 
-        result = _sut.createNotifyCharacteristicRequest(characteristic);
+        result = sut.createNotifyCharacteristicRequest(characteristic);
       });
 
       test('It converts device ids', () {
@@ -180,7 +180,7 @@ void main() {
       late pb.NegotiateMtuRequest result;
 
       setUp(() {
-        result = _sut.createNegotiateMtuRequest(deviceId, mtuSize);
+        result = sut.createNegotiateMtuRequest(deviceId, mtuSize);
       });
 
       test('It converts device id', () {
@@ -199,7 +199,7 @@ void main() {
 
       setUp(() {
         priority = ConnectionPriority.highPerformance;
-        result = _sut.createChangeConnectionPrioRequest(deviceId, priority);
+        result = sut.createChangeConnectionPrioRequest(deviceId, priority);
       });
 
       test('It converts device id', () {
@@ -218,7 +218,7 @@ void main() {
 
       group('When creating request without services to discover', () {
         setUp(() {
-          result = _sut.createScanForDevicesRequest(
+          result = sut.createScanForDevicesRequest(
             withServices: null,
             scanMode: scanMode,
             requireLocationServicesEnabled: false,
@@ -240,7 +240,7 @@ void main() {
       group('When creating request without services to discover', () {
         setUp(() {
           withServices = [Uuid.parse('FEFF')];
-          result = _sut.createScanForDevicesRequest(
+          result = sut.createScanForDevicesRequest(
             withServices: withServices,
             scanMode: scanMode,
             requireLocationServicesEnabled: false,
@@ -268,7 +268,7 @@ void main() {
           uuid1 = Uuid.parse('FE1F');
           uuid2 = Uuid.parse('FEAA');
 
-          result = _sut.createScanForDevicesRequest(
+          result = sut.createScanForDevicesRequest(
             withServices: [uuid1, uuid2],
             scanMode: scanMode,
             requireLocationServicesEnabled: false,
@@ -296,7 +296,7 @@ void main() {
       const deviceId = '123';
       late pb.ClearGattCacheRequest result;
       setUp(() {
-        result = _sut.createClearGattCacheRequest(deviceId);
+        result = sut.createClearGattCacheRequest(deviceId);
       });
 
       test('It converts deviceId', () {
@@ -319,7 +319,7 @@ void main() {
           serviceInstanceId: "11",
           deviceId: deviceId,
         );
-        result = _sut.createNotifyNoMoreCharacteristicRequest(characteristic);
+        result = sut.createNotifyNoMoreCharacteristicRequest(characteristic);
       });
 
       test('It converts the ids', () {
@@ -336,7 +336,7 @@ void main() {
       late pb.DiscoverServicesRequest result;
 
       setUp(() {
-        result = _sut.createDiscoverServicesRequest(deviceId);
+        result = sut.createDiscoverServicesRequest(deviceId);
       });
 
       test('It converts deviceId', () {

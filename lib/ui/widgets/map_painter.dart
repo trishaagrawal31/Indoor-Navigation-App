@@ -30,7 +30,7 @@ class MapPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round;
       final shadowPaint = Paint()
-        ..color = Colors.black.withOpacity(0.18)
+        ..color = Colors.black.withValues(alpha: 0.18)
         ..strokeWidth = 11
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round

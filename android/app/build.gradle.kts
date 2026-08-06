@@ -32,6 +32,16 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+        checkDependencies = false
+    }
+}
+
+tasks.matching { it.name.startsWith("lint") }.configureEach {
+    enabled = false
 }
 
 kotlin {

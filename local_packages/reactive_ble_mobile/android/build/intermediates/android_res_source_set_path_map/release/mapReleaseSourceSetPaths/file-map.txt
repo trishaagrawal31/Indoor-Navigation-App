@@ -1,0 +1,7 @@
+com.signify.hue.flutterreactiveble-pngs-0 /Users/syedameenuddin/al-futtaim/Indoor-Navigation-App/local_packages/reactive_ble_mobile/android/build/generated/res/pngs/release
+com.signify.hue.flutterreactiveble-updated_navigation_xml-1 /Users/syedameenuddin/al-futtaim/Indoor-Navigation-App/local_packages/reactive_ble_mobile/android/build/generated/updated_navigation_xml/release
+com.signify.hue.flutterreactiveble-mergeReleaseResources-2 /Users/syedameenuddin/al-futtaim/Indoor-Navigation-App/local_packages/reactive_ble_mobile/android/build/intermediates/incremental/release/mergeReleaseResources/merged.dir
+com.signify.hue.flutterreactiveble-mergeReleaseResources-3 /Users/syedameenuddin/al-futtaim/Indoor-Navigation-App/local_packages/reactive_ble_mobile/android/build/intermediates/incremental/release/mergeReleaseResources/stripped.dir
+com.signify.hue.flutterreactiveble-release-4 /Users/syedameenuddin/al-futtaim/Indoor-Navigation-App/local_packages/reactive_ble_mobile/android/build/intermediates/merged_res/release/mergeReleaseResources
+com.signify.hue.flutterreactiveble-main-5 /Users/syedameenuddin/al-futtaim/Indoor-Navigation-App/local_packages/reactive_ble_mobile/android/src/main/res
+com.signify.hue.flutterreactiveble-release-6 /Users/syedameenuddin/al-futtaim/Indoor-Navigation-App/local_packages/reactive_ble_mobile/android/src/release/res

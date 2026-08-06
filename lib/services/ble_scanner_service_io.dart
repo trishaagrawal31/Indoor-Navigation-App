@@ -29,7 +29,7 @@ class BleScannerService {
   void startScan() {
     if (_ble == null) return;
     _scanSub?.cancel();
-    _scanSub = _ble!.scanForDevices(withServices: []).listen(_onDeviceSeen);
+    _scanSub = _ble.scanForDevices(withServices: []).listen(_onDeviceSeen);
   }
 
   void _onDeviceSeen(DiscoveredDevice device) {

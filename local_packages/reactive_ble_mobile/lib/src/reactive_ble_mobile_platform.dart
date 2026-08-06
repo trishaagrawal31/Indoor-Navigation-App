@@ -318,7 +318,7 @@ class ReactiveBleMobilePlatformFactory {
   const ReactiveBleMobilePlatformFactory();
 
   ReactiveBleMobilePlatform create({Logger? logger}) {
-    const _bleMethodChannel = MethodChannel("flutter_reactive_ble_method");
+    const bleMethodChannel = MethodChannel("flutter_reactive_ble_method");
 
     const connectedDeviceChannel =
         EventChannel("flutter_reactive_ble_connected_device");
@@ -329,7 +329,7 @@ class ReactiveBleMobilePlatformFactory {
     return ReactiveBleMobilePlatform(
       protobufConverter: const ProtobufConverterImpl(),
       argsToProtobufConverter: const ArgsToProtobufConverterImpl(),
-      bleMethodChannel: _bleMethodChannel,
+      bleMethodChannel: bleMethodChannel,
       connectedDeviceChannel:
           connectedDeviceChannel.receiveBroadcastStream().cast<List<int>>(),
       charUpdateChannel:
