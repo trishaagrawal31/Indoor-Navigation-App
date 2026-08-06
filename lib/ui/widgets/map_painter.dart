@@ -64,11 +64,14 @@ class MapPainter extends CustomPainter {
       canvas.drawPath(routePath, shadowPaint);
       canvas.drawPath(routePath, routePaint);
 
-      for (final beacon in path) {
+      // Every waypoint except the destination gets a plain dot; the
+      // destination gets a distinct pin (drawn below) instead.
+      for (final beacon in path.sublist(0, path.length - 1)) {
         final p = scale(beacon.position);
         canvas.drawCircle(p, 6.5, Paint()..color = Colors.white);
         canvas.drawCircle(p, 4.5, Paint()..color = const Color(0xFF0D47A1));
       }
+      _drawDestinationPin(canvas, scale(path.last.position));
     }
 
     final user = userLocation;
@@ -100,6 +103,27 @@ class MapPainter extends CustomPainter {
     final index = path.indexWhere((b) => b.id == user.id);
     if (index == -1 || index >= path.length - 1) return null;
     return path[index + 1];
+  }
+
+  /// Draws a map-pin marker at [point], anchored so the pin's tip (its
+  /// visual point, at the bottom of the glyph) lands exactly on it, using
+  /// Flutter's standard "render an Icon's glyph via TextPainter" technique
+  /// for drawing Material icons inside a CustomPainter.
+  void _drawDestinationPin(Canvas canvas, Offset point) {
+    const icon = Icons.location_on;
+    const size = 34.0;
+    final textPainter = TextPainter(textDirection: TextDirection.ltr)
+      ..text = TextSpan(
+        text: String.fromCharCode(icon.codePoint),
+        style: TextStyle(
+          fontSize: size,
+          fontFamily: icon.fontFamily,
+          package: icon.fontPackage,
+          color: const Color(0xFF2E7D32),
+        ),
+      )
+      ..layout();
+    textPainter.paint(canvas, Offset(point.dx - textPainter.width / 2, point.dy - textPainter.height));
   }
 
   /// Draws a chevron centered at [from], rotated to [angle] radians

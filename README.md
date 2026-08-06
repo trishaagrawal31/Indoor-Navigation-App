@@ -154,14 +154,32 @@ position, correcting drift. See `MotionService`
   with this project's history of permission surprises.
 - New native permission → needs a full rebuild (`flutter pub get`, then
   `flutter run`), not hot reload/restart.
-- **If it's still jumpy after this**: the remaining likely cause is
-  `pedometer`'s step-count stream delivering steps in bursts rather than
-  one at a time — a burst gets applied all at once in whatever heading was
-  current at that moment, which can still look like a jump even with a
-  smoothed heading. The next mitigation, not yet implemented, would be
-  animating `liveUserPosition` transitions in the UI (e.g.
-  `TweenAnimationBuilder`) rather than redrawing at the new position
-  instantly on every `notifyListeners()`.
+- **Confined to the corridor graph**: `NavigationController._onStepDelta`
+  runs every dead-reckoned position through `StoreMap.snapToGraph`
+  (`lib/models/store_map.dart`) before using it — a map-matching step that
+  projects the raw point onto the nearest edge of `storeMap.edges`, clamped
+  to that segment. This is what stops PDR from drifting into the black room
+  rectangles: those have no edges, so the graph itself defines walkable
+  space. Simplification worth knowing about: it always snaps to whichever
+  edge is geometrically nearest, with no directionality/continuity
+  awareness — fine for this graph's current size (4 edges), but if the
+  corridor layout grows dense enough for edges to run close and parallel,
+  nearest-segment snapping can occasionally jump to the wrong nearby
+  corridor instead of staying on the one actually being walked.
+- **Animated arrow movement**: `_MapFrame` (`lib/ui/screens/map_screen.dart`)
+  is a `StatefulWidget` that tweens the *drawn* position from wherever it
+  currently is to each new `liveUserPosition` over ~350ms
+  (`Curves.easeOut`), redirecting smoothly mid-flight if another update
+  arrives before the tween finishes, rather than snapping instantly on
+  every `notifyListeners()`. This is what makes the arrow read as
+  continuous walking motion instead of discrete jumps between sparse step
+  events. Heading isn't separately animated — `MotionService`'s heading
+  smoothing (above) already keeps it visually smooth at the source.
+- **Destination pin**: `MapPainter._drawDestinationPin` renders a
+  `location_on` Material icon glyph directly onto the canvas (drawing an
+  `Icon`'s glyph via `TextPainter` inside a `CustomPainter`) at the last
+  beacon in the route, instead of the plain dot every other waypoint gets —
+  makes the endpoint visually distinct from the path it took to get there.
 
 ## Route distance
 

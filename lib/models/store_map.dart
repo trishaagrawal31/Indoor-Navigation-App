@@ -1,3 +1,5 @@
+import 'dart:ui' show Offset;
+
 import 'beacon.dart';
 import 'item.dart';
 
@@ -98,5 +100,36 @@ class StoreMap {
       map.putIfAbsent(e.to, () => []).add(Edge(from: e.to, to: e.from, weight: e.weight));
     }
     return map;
+  }
+
+  /// The closest point to [point] lying on any edge of the corridor graph
+  /// — i.e. map-matching: projects [point] onto the nearest edge segment,
+  /// clamped to that segment's endpoints. Used to keep PDR-tracked movement
+  /// confined to walkable corridors instead of drifting into room
+  /// interiors, which have no edges of their own.
+  Offset snapToGraph(Offset point) {
+    Offset? closest;
+    var bestDistanceSquared = double.infinity;
+    for (final edge in edges) {
+      final a = beaconById(edge.from)?.position;
+      final b = beaconById(edge.to)?.position;
+      if (a == null || b == null) continue;
+      final projected = _projectOntoSegment(point, a, b);
+      final d = (projected - point).distanceSquared;
+      if (d < bestDistanceSquared) {
+        bestDistanceSquared = d;
+        closest = projected;
+      }
+    }
+    return closest ?? point;
+  }
+
+  Offset _projectOntoSegment(Offset p, Offset a, Offset b) {
+    final ab = b - a;
+    final abLengthSquared = ab.dx * ab.dx + ab.dy * ab.dy;
+    if (abLengthSquared == 0) return a;
+    final t = ((p.dx - a.dx) * ab.dx + (p.dy - a.dy) * ab.dy) / abLengthSquared;
+    final tClamped = t.clamp(0.0, 1.0);
+    return Offset(a.dx + ab.dx * tClamped, a.dy + ab.dy * tClamped);
   }
 }

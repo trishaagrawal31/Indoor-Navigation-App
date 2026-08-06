@@ -360,14 +360,59 @@ class _StatusCard extends StatelessWidget {
   }
 }
 
-class _MapFrame extends StatelessWidget {
+/// Draws the map + live arrow. The arrow's on-screen position is animated
+/// (tweened) between updates rather than redrawn instantly at each new
+/// [NavigationController.liveUserPosition] — steps are discrete,
+/// infrequent events, so without this the arrow visibly "jumps" from spot
+/// to spot instead of reading as continuous walking motion.
+class _MapFrame extends StatefulWidget {
   const _MapFrame({required this.controller, required this.storeMap});
 
   final NavigationController controller;
   final StoreMap storeMap;
 
   @override
+  State<_MapFrame> createState() => _MapFrameState();
+}
+
+class _MapFrameState extends State<_MapFrame> with SingleTickerProviderStateMixin {
+  late final AnimationController _positionAnim;
+  Offset? _animFrom;
+  Offset? _animTo;
+
+  @override
+  void initState() {
+    super.initState();
+    _positionAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 350))
+      ..addListener(() => setState(() {}));
+    _animTo = widget.controller.liveUserPosition;
+    widget.controller.addListener(_onControllerChanged);
+  }
+
+  void _onControllerChanged() {
+    final target = widget.controller.liveUserPosition;
+    if (target == null || target == _animTo) return;
+    _animFrom = _currentPosition ?? target;
+    _animTo = target;
+    _positionAnim.forward(from: 0);
+  }
+
+  Offset? get _currentPosition {
+    if (_animFrom == null || _animTo == null) return _animTo;
+    return Offset.lerp(_animFrom, _animTo, Curves.easeOut.transform(_positionAnim.value));
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onControllerChanged);
+    _positionAnim.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final controller = widget.controller;
+    final storeMap = widget.storeMap;
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -408,7 +453,7 @@ class _MapFrame extends StatelessWidget {
                 mapSize: Size(storeMap.mapWidth, storeMap.mapHeight),
                 path: controller.currentPath,
                 userLocation: controller.currentBeacon,
-                livePosition: controller.liveUserPosition,
+                livePosition: _currentPosition,
                 headingDegrees: controller.headingDegrees,
                 mapNorthOffsetDegrees: storeMap.mapNorthOffsetDegrees,
               ),

@@ -99,7 +99,9 @@ class NavigationController extends ChangeNotifier {
   void _onStepDelta(Offset delta) {
     final base = liveUserPosition ?? currentBeacon?.position;
     if (base == null) return; // No fix yet to walk from.
-    liveUserPosition = base + delta;
+    // Clamp onto the corridor graph — free 2D dead reckoning would
+    // otherwise happily drift into room interiors, which have no edges.
+    liveUserPosition = storeMap.snapToGraph(base + delta);
     notifyListeners();
   }
 
