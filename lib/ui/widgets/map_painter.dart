@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../models/beacon.dart';
@@ -56,9 +58,40 @@ class MapPainter extends CustomPainter {
     final user = userLocation;
     if (user != null) {
       final p = scale(user.position);
-      canvas.drawCircle(p, 10, Paint()..color = Colors.white);
-      canvas.drawCircle(p, 7.5, Paint()..color = Colors.redAccent);
+      canvas.drawCircle(p, 11, Paint()..color = Colors.white);
+
+      final next = _nextWaypoint(user);
+      if (next != null) {
+        _drawDirectionArrow(canvas, from: p, to: scale(next.position));
+      } else {
+        canvas.drawCircle(p, 7.5, Paint()..color = Colors.redAccent);
+      }
     }
+  }
+
+  /// The beacon immediately after [user] on the current route, or null if
+  /// [user] isn't on the route (or has already reached its end) — i.e.
+  /// there's no "forward" direction left to point an arrow toward.
+  Beacon? _nextWaypoint(Beacon user) {
+    final index = path.indexWhere((b) => b.id == user.id);
+    if (index == -1 || index >= path.length - 1) return null;
+    return path[index + 1];
+  }
+
+  /// Draws a chevron centered at [from], rotated to point toward [to].
+  void _drawDirectionArrow(Canvas canvas, {required Offset from, required Offset to}) {
+    final angle = math.atan2(to.dy - from.dy, to.dx - from.dx);
+    canvas.save();
+    canvas.translate(from.dx, from.dy);
+    canvas.rotate(angle);
+    final arrow = Path()
+      ..moveTo(9, 0)
+      ..lineTo(-5, 6)
+      ..lineTo(-1.5, 0)
+      ..lineTo(-5, -6)
+      ..close();
+    canvas.drawPath(arrow, Paint()..color = Colors.redAccent);
+    canvas.restore();
   }
 
   @override
