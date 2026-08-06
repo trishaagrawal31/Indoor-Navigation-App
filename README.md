@@ -8,6 +8,7 @@ BLE beacon → RSSI scan → zone snap → Dijkstra pathfinding → SVG map rend
 lib/
   models/
     beacon.dart            Beacon (id, bleId, name, position)
+    item.dart               Item (name, beaconId) — a searchable thing and its nearest beacon
     store_map.dart          StoreMap + Edge, loaded from store_data.json
   services/
     store_data_repository.dart   Loads assets/store_data.json
@@ -16,11 +17,12 @@ lib/
     pathfinding_service.dart     Dijkstra over the beacon graph
     navigation_controller.dart   Wires the above into app state (ChangeNotifier)
   ui/
-    screens/map_screen.dart      SVG map + destination picker + directions
+    screens/map_screen.dart      SVG map + destination picker + item search + directions
     widgets/map_painter.dart     CustomPainter: user pin + route overlay
+    widgets/item_search_delegate.dart   Search-as-you-type over items -> sets destination
   app.dart / main.dart
 assets/
-  store_data.json           Beacon coords + aisle graph (edit this per store)
+  store_data.json           Beacons, aisle graph, and searchable items (edit this per store)
   floorMap.svg               Real floor plan, 297x210 (landscape) coordinate space
 ```
 
@@ -97,6 +99,25 @@ If you later mount a beacon inside/near one of the 7 labeled rooms
 (ChatGPT Meeting Room, Safari Room, Gemma Room, SOC Room, Seating Area 1,
 Seating Area 2, Breakout Room) instead of the walkway, add a beacon entry
 for it and wire it into `edges` the same way.
+
+## Item search
+
+Tap the search icon in the app bar to search-as-you-type over
+`store_data.json`'s `items` array; picking a result calls
+`NavigationController.setDestination` with that item's nearest beacon, same
+as picking one from the destination-picker menu, and the route renders the
+same way.
+
+- Each item is `{ "name": "...", "beaconId": "b1" }` — `beaconId` must match
+  an existing `beacons[].id`. There's no separate "room" concept: an item's
+  location *is* whichever beacon is nearest to it, same as how the walkway
+  beacons are already named after nearby rooms.
+- Matching is a plain case-insensitive substring match on `name`
+  (`StoreMap.searchItems` in `lib/models/store_map.dart`) — fine for a
+  handful of items; if the catalog grows large, that's the place to swap in
+  something smarter (fuzzy matching, indexing, etc.).
+- The current 8 items are placeholders illustrating the shape — replace with
+  the store's real inventory.
 
 ## Troubleshooting: map stuck on the loading spinner
 

@@ -13,5 +13,15 @@
     { "from": "b2", "to": "b3", "weight": 132 },
     { "from": "b3", "to": "b4", "weight": 103 },
     { "from": "b4", "to": "b1", "weight": 188 }
+  ],
+  "items": [
+    { "name": "Whiteboard Markers", "beaconId": "b1" },
+    { "name": "Standing Desk", "beaconId": "b1" },
+    { "name": "Projector", "beaconId": "b2" },
+    { "name": "HDMI Cable", "beaconId": "b2" },
+    { "name": "Coffee Machine", "beaconId": "b3" },
+    { "name": "Printer", "beaconId": "b3" },
+    { "name": "Server Rack", "beaconId": "b4" },
+    { "name": "Lounge Chairs", "beaconId": "b4" }
   ]
 }
