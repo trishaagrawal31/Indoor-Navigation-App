@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'models/store_map.dart';
 import 'services/ble_scanner_service.dart';
+import 'services/motion_service.dart';
 import 'services/navigation_controller.dart';
 import 'services/store_data_repository.dart';
 import 'ui/screens/map_screen.dart';
@@ -27,6 +28,10 @@ class IndoorNavApp extends StatelessWidget {
           final controller = NavigationController(
             storeMap: storeMap,
             bleScanner: BleScannerService(),
+            motionService: MotionService(
+              metersPerUnit: storeMap.metersPerUnit,
+              mapNorthOffsetDegrees: storeMap.mapNorthOffsetDegrees,
+            ),
           );
           return MapScreen(controller: controller);
         },

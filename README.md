@@ -13,6 +13,7 @@ lib/
   services/
     store_data_repository.dart   Loads assets/store_data.json
     ble_scanner_service.dart     flutter_reactive_ble scan, 3s rolling RSSI avg
+    motion_service.dart          pedometer + flutter_compass -> PDR position deltas
     zone_snap_service.dart       Strongest RSSI -> nearest beacon
     pathfinding_service.dart     Dijkstra over the beacon graph
     navigation_controller.dart   Wires the above into app state (ChangeNotifier)
@@ -99,6 +100,42 @@ If you later mount a beacon inside/near one of the 7 labeled rooms
 (ChatGPT Meeting Room, Safari Room, Gemma Room, SOC Room, Seating Area 1,
 Seating Area 2, Breakout Room) instead of the walkway, add a beacon entry
 for it and wire it into `edges` the same way.
+
+## Live position tracking (PDR)
+
+The map arrow no longer only jumps between beacon fixes — between fixes it
+moves continuously via **pedestrian dead reckoning (PDR)**: each detected
+step (`pedometer`, native OS step counter) advances a position estimate by
+one step-length in the current compass heading (`flutter_compass`), and
+each new BLE zone-snap fix resets that estimate back to the beacon's known
+position, correcting drift. See `MotionService`
+(`lib/services/motion_service.dart`) and `NavigationController`'s
+`_onStepDelta`/`_onRssiUpdate` (`lib/services/navigation_controller.dart`).
+
+- `store_data.json`'s `metersPerUnit` converts step-length meters into map
+  coordinate units; `mapNorthOffsetDegrees` is the compass bearing that
+  corresponds to the map's "up" direction, used to rotate a heading into
+  the map's coordinate frame.
+- **Current calibration is approximate.** Measured `b1↔b4` = 65 map units
+  for 6 m (0.0923 m/unit) and `b4↔b3` = 103 map units for 12 m (0.1165
+  m/unit) — these two disagree by ~26%, meaning the floor plan isn't
+  uniformly to scale (expected, given it was reconstructed from a rotated
+  SVG rather than surveyed). `metersPerUnit: 0.104` is their average.
+  Re-measure more beacon pairs and adjust this single number to improve
+  accuracy; `mapNorthOffsetDegrees: 90` (map top = East) came directly from
+  the building's actual orientation.
+- `stepLengthMeters` (`MotionService`, default `0.75`) is a generic average
+  adult stride — personalize per-user if needed.
+- **Permissions**: step counting needs `ACTIVITY_RECOGNITION`
+  (`AndroidManifest.xml`, API 29+) / `NSMotionUsageDescription`
+  (`Info.plist`), requested at runtime by `MotionService.start()` the same
+  way `BleScannerService` handles BLE permissions; denial surfaces via
+  `MotionService.errors` as a `SnackBar`, same pattern. `flutter_compass`
+  needs no extra runtime permission on either platform as far as tested —
+  flagged here in case that turns out wrong on a given device, consistent
+  with this project's history of permission surprises.
+- New native permission → needs a full rebuild (`flutter pub get`, then
+  `flutter run`), not hot reload/restart.
 
 ## Item search
 

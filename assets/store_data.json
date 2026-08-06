@@ -2,6 +2,8 @@
   "mapAsset": "assets/floorMap.svg",
   "mapWidth": 297,
   "mapHeight": 210,
+  "metersPerUnit": 0.104,
+  "mapNorthOffsetDegrees": 90,
   "beacons": [
     { "id": "b1", "bleId": "4a8b9c1d-8e7f-4a2b-9c3d-5e6f7a8b9c0d", "name": "Breakout / Seating 1", "x": 135, "y": 43 },
     { "id": "b2", "bleId": "e2c56db5-dffb-48d2-b060-d0f5a71096e0", "name": "Seating 1 / ChatGPT Room", "x": 120, "y": 147 },

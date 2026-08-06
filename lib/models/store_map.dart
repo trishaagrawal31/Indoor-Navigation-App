@@ -23,6 +23,17 @@ class StoreMap {
   final String mapAsset;
   final double mapWidth;
   final double mapHeight;
+
+  /// Real-world meters per one map/SVG coordinate unit. Used to convert
+  /// step-length-based movement (meters) into map-space offsets. Calibrated
+  /// from measured real-world distances between beacons — see README.
+  final double metersPerUnit;
+
+  /// Compass bearing (degrees, 0 = North) that corresponds to the map's
+  /// "up" (-y) direction, e.g. 90 if the top of the floor plan faces East.
+  /// Used to rotate compass headings into the map's coordinate frame.
+  final double mapNorthOffsetDegrees;
+
   final List<Beacon> beacons;
   final List<Edge> edges;
   final List<Item> items;
@@ -31,6 +42,8 @@ class StoreMap {
     required this.mapAsset,
     required this.mapWidth,
     required this.mapHeight,
+    required this.metersPerUnit,
+    required this.mapNorthOffsetDegrees,
     required this.beacons,
     required this.edges,
     required this.items,
@@ -41,6 +54,8 @@ class StoreMap {
       mapAsset: json['mapAsset'] as String,
       mapWidth: (json['mapWidth'] as num).toDouble(),
       mapHeight: (json['mapHeight'] as num).toDouble(),
+      metersPerUnit: (json['metersPerUnit'] as num? ?? 1.0).toDouble(),
+      mapNorthOffsetDegrees: (json['mapNorthOffsetDegrees'] as num? ?? 0.0).toDouble(),
       beacons: (json['beacons'] as List)
           .map((b) => Beacon.fromJson(b as Map<String, dynamic>))
           .toList(),

@@ -21,22 +21,27 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   StreamSubscription<String>? _scanErrorSub;
+  StreamSubscription<String>? _motionErrorSub;
 
   @override
   void initState() {
     super.initState();
     widget.controller.start();
-    _scanErrorSub = widget.controller.bleScanner.errors.listen((message) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
-      );
-    });
+    _scanErrorSub = widget.controller.bleScanner.errors.listen(_showError);
+    _motionErrorSub = widget.controller.motionService.errors.listen(_showError);
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
+    );
   }
 
   @override
   void dispose() {
     _scanErrorSub?.cancel();
+    _motionErrorSub?.cancel();
     super.dispose();
   }
 
@@ -378,6 +383,9 @@ class _MapFrame extends StatelessWidget {
                 mapSize: Size(storeMap.mapWidth, storeMap.mapHeight),
                 path: controller.currentPath,
                 userLocation: controller.currentBeacon,
+                livePosition: controller.liveUserPosition,
+                headingDegrees: controller.headingDegrees,
+                mapNorthOffsetDegrees: storeMap.mapNorthOffsetDegrees,
               ),
             ),
           ],
