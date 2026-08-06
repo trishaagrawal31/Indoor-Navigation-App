@@ -3,15 +3,25 @@
   "mapWidth": 297,
   "mapHeight": 210,
   "beacons": [
-    { "id": "b1", "bleId": "01020304-0506-0708-090a-0b0c0d0e0f10:256:1", "name": "Breakout / Seating 1", "x": 70, "y": 51 },
-    { "id": "b2", "bleId": "e2c56db5-dffb-48d2-b060-d0f5a71096e0", "name": "Seating 1 / ChatGPT Room", "x": 119, "y": 147 },
-    { "id": "b3", "bleId": "01020304-0506-0708-090a-0b0c0d0e0f10:256:3", "name": "Safari / Gemma Room", "x": 251, "y": 146 },
-    { "id": "b4", "bleId": "01020304-0506-0708-090a-0b0c0d0e0f10:256:4", "name": "SOC / Seating 2", "x": 258, "y": 43 }
+    { "id": "b1", "bleId": "4a8b9c1d-8e7f-4a2b-9c3d-5e6f7a8b9c0d", "name": "Breakout / Seating 1", "x": 135, "y": 43 },
+    { "id": "b2", "bleId": "e2c56db5-dffb-48d2-b060-d0f5a71096e0", "name": "Seating 1 / ChatGPT Room", "x": 120, "y": 147 },
+    { "id": "b3", "bleId": "f47ac10b-58cc-4372-a567-0e02b2c3d479", "name": "Safari / Gemma Room", "x": 200, "y": 146 },
+    { "id": "b4", "bleId": "01020304-0506-0708-090a-0b0c0d0e0f10:256:4", "name": "SOC / Seating 2", "x": 200, "y": 43 }
   ],
   "edges": [
-    { "from": "b1", "to": "b2", "weight": 108 },
+    
     { "from": "b2", "to": "b3", "weight": 132 },
     { "from": "b3", "to": "b4", "weight": 103 },
     { "from": "b4", "to": "b1", "weight": 188 }
+  ],
+  "items": [
+    { "name": "Whiteboard Markers", "beaconId": "b1" },
+    { "name": "Standing Desk", "beaconId": "b1" },
+    { "name": "Projector", "beaconId": "b2" },
+    { "name": "HDMI Cable", "beaconId": "b2" },
+    { "name": "Coffee Machine", "beaconId": "b3" },
+    { "name": "Printer", "beaconId": "b3" },
+    { "name": "Server Rack", "beaconId": "b4" },
+    { "name": "Lounge Chairs", "beaconId": "b4" }
   ]
 }

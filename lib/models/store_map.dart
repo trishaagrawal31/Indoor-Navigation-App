@@ -1,4 +1,5 @@
 import 'beacon.dart';
+import 'item.dart';
 
 /// A weighted, undirected edge between two beacons in the aisle graph.
 class Edge {
@@ -24,6 +25,7 @@ class StoreMap {
   final double mapHeight;
   final List<Beacon> beacons;
   final List<Edge> edges;
+  final List<Item> items;
 
   const StoreMap({
     required this.mapAsset,
@@ -31,6 +33,7 @@ class StoreMap {
     required this.mapHeight,
     required this.beacons,
     required this.edges,
+    required this.items,
   });
 
   factory StoreMap.fromJson(Map<String, dynamic> json) {
@@ -44,7 +47,17 @@ class StoreMap {
       edges: (json['edges'] as List)
           .map((e) => Edge.fromJson(e as Map<String, dynamic>))
           .toList(),
+      items: (json['items'] as List? ?? [])
+          .map((i) => Item.fromJson(i as Map<String, dynamic>))
+          .toList(),
     );
+  }
+
+  /// Case-insensitive substring search over item names.
+  List<Item> searchItems(String query) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return const [];
+    return items.where((i) => i.name.toLowerCase().contains(q)).toList();
   }
 
   Beacon? beaconById(String id) {

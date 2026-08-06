@@ -40,6 +40,12 @@ class NavigationController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void clearDestination() {
+    destinationBeacon = null;
+    currentPath = [];
+    notifyListeners();
+  }
+
   void _onRssiUpdate(Map<String, double> rssiByBleId) {
     final nearest = _zoneSnap.nearestBeacon(rssiByBleId, storeMap);
     if (nearest == null || nearest.id == currentBeacon?.id) return;
