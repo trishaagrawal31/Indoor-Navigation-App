@@ -1,14 +1,25 @@
 import '../models/beacon.dart';
 import '../models/store_map.dart';
 
+/// A computed route: the beacon-by-beacon path, and its total edge-weight
+/// distance (map units — multiply by [StoreMap.metersPerUnit] for meters).
+class RouteResult {
+  final List<Beacon> path;
+  final double distanceUnits;
+
+  const RouteResult({required this.path, required this.distanceUnits});
+
+  static const empty = RouteResult(path: [], distanceUnits: 0);
+}
+
 /// Shortest path between two beacons over the aisle graph, via Dijkstra.
 /// The store's beacon graph is small (tens of nodes), so a plain O(V^2)
 /// implementation is simpler and fast enough for this MVP.
 class PathfindingService {
-  List<Beacon> findPath(StoreMap storeMap, String startId, String endId) {
+  RouteResult findPath(StoreMap storeMap, String startId, String endId) {
     if (startId == endId) {
       final only = storeMap.beaconById(startId);
-      return only == null ? [] : [only];
+      return only == null ? RouteResult.empty : RouteResult(path: [only], distanceUnits: 0);
     }
 
     final adjacency = storeMap.adjacency;
@@ -34,8 +45,10 @@ class PathfindingService {
       }
     }
 
-    if (!previous.containsKey(endId) && startId != endId) return [];
-    return _reconstructPath(storeMap, previous, startId, endId);
+    if (!previous.containsKey(endId) && startId != endId) return RouteResult.empty;
+    final path = _reconstructPath(storeMap, previous, startId, endId);
+    if (path.isEmpty) return RouteResult.empty;
+    return RouteResult(path: path, distanceUnits: distances[endId] ?? 0);
   }
 
   String? _closestUnvisited(Map<String, double> distances, Set<String> visited) {

@@ -67,8 +67,9 @@ class MotionService {
       _compassSub = compassEvents.listen((event) {
         final heading = event.heading;
         if (heading == null) return;
-        _latestHeadingDegrees = heading;
-        _headingController.add(heading);
+        final smoothed = _smoothHeading(_latestHeadingDegrees, heading);
+        _latestHeadingDegrees = smoothed;
+        _headingController.add(smoothed);
       });
     }
 
@@ -94,6 +95,26 @@ class MotionService {
     final theta = (heading - mapNorthOffsetDegrees) * math.pi / 180;
     final delta = Offset(distanceUnits * math.sin(theta), -distanceUnits * math.cos(theta));
     _deltaController.add(delta);
+  }
+
+  /// Exponential moving average that handles the 0°/360° wraparound
+  /// correctly by averaging in Cartesian (unit-vector) space rather than
+  /// raw degrees — naively averaging e.g. 350° and 10° would otherwise give
+  /// 180° instead of ~0°. Smooths out magnetometer noise (common indoors,
+  /// near structural metal/electronics) that otherwise sends a whole batch
+  /// of steps off in a wildly wrong direction on a single bad reading —
+  /// the main cause of the live position "jumping" instead of moving
+  /// smoothly. [alpha] close to 0 = heavier smoothing (more lag on real
+  /// turns); close to 1 = lighter smoothing (more noise gets through).
+  double _smoothHeading(double? previous, double next, {double alpha = 0.15}) {
+    if (previous == null) return next;
+    final prevRad = previous * math.pi / 180;
+    final nextRad = next * math.pi / 180;
+    final x = (1 - alpha) * math.cos(prevRad) + alpha * math.cos(nextRad);
+    final y = (1 - alpha) * math.sin(prevRad) + alpha * math.sin(nextRad);
+    var result = math.atan2(y, x) * 180 / math.pi;
+    if (result < 0) result += 360;
+    return result;
   }
 
   void stop() {

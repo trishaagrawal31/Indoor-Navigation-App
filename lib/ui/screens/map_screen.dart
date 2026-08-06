@@ -329,9 +329,34 @@ class _StatusCard extends StatelessWidget {
               ),
             ],
           ),
+          if (controller.currentDistanceMeters != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(Icons.straighten, size: 16, color: colorScheme.tertiary),
+                const SizedBox(width: 8),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: 'Distance  ', style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+                      TextSpan(
+                        text: _formatDistance(controller.currentDistanceMeters!),
+                        style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  String _formatDistance(double meters) {
+    if (meters < 1000) return '${meters.round()} m';
+    return '${(meters / 1000).toStringAsFixed(1)} km';
   }
 }
 

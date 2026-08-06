@@ -122,10 +122,28 @@ position, correcting drift. See `MotionService`
   uniformly to scale (expected, given it was reconstructed from a rotated
   SVG rather than surveyed). `metersPerUnit: 0.104` is their average.
   Re-measure more beacon pairs and adjust this single number to improve
-  accuracy; `mapNorthOffsetDegrees: 90` (map top = East) came directly from
-  the building's actual orientation.
+  accuracy. `mapNorthOffsetDegrees: 180` was corrected empirically (on-device
+  testing showed the arrow off by 90°) — note this means the map's "up"
+  direction now works out to compass **South**, not the East originally
+  described; if direction ever looks wrong again after further changes,
+  that mismatch is the first thing to check, not another blind 90° nudge.
 - `stepLengthMeters` (`MotionService`, default `0.75`) is a generic average
   adult stride — personalize per-user if needed.
+- **Heading smoothing**: raw compass readings are noisy indoors (structural
+  metal, electronics interfere with the magnetometer), which was causing
+  whole batches of steps to fire in a wildly wrong direction — the live
+  arrow visibly "jumping" instead of moving smoothly. `MotionService`
+  applies an exponential moving average (`_smoothHeading`, circular —
+  handles the 0°/360° wraparound correctly) before using a heading for
+  anything. Tune via the `alpha` default in `_smoothHeading` if turns feel
+  too laggy (higher alpha) or still too jumpy (lower alpha).
+- **Proximity-gated recalibration**: `NavigationController` only hard-resets
+  `liveUserPosition` to a beacon's exact position when that beacon's RSSI
+  clears `_recalibrationMinRssi` (default `-70` dBm) — recalibrating off a
+  weak signal was the other source of visible jumping, since two
+  similar-strength weak beacons can flip "nearest" back and forth. Weak
+  fixes still update `currentBeacon` (for the "You are near" text and as
+  the pathfinding start) — only the live-arrow teleport is gated.
 - **Permissions**: step counting needs `ACTIVITY_RECOGNITION`
   (`AndroidManifest.xml`, API 29+) / `NSMotionUsageDescription`
   (`Info.plist`), requested at runtime by `MotionService.start()` the same
@@ -136,6 +154,23 @@ position, correcting drift. See `MotionService`
   with this project's history of permission surprises.
 - New native permission → needs a full rebuild (`flutter pub get`, then
   `flutter run`), not hot reload/restart.
+- **If it's still jumpy after this**: the remaining likely cause is
+  `pedometer`'s step-count stream delivering steps in bursts rather than
+  one at a time — a burst gets applied all at once in whatever heading was
+  current at that moment, which can still look like a jump even with a
+  smoothed heading. The next mitigation, not yet implemented, would be
+  animating `liveUserPosition` transitions in the UI (e.g.
+  `TweenAnimationBuilder`) rather than redrawing at the new position
+  instantly on every `notifyListeners()`.
+
+## Route distance
+
+Once a destination is picked, the status card above the map shows total
+route distance (e.g. "142 m"), computed from `PathfindingService.findPath`'s
+`RouteResult.distanceUnits` (the sum of edge weights Dijkstra already
+computes to find the shortest path — no separate calculation) multiplied by
+`metersPerUnit`. Since that scale factor is only roughly calibrated (see
+above), treat this distance as approximate too.
 
 ## Item search
 

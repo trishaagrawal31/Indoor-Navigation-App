@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' show Offset;
 
 import 'package:flutter/foundation.dart';
@@ -27,6 +28,16 @@ class NavigationController extends ChangeNotifier {
     _headingSub = motionService.headingStream.listen(_onHeading);
   }
 
+  /// Only a beacon fix at least this strong (dBm) is trusted to
+  /// **recalibrate** the PDR position — i.e. actually snap
+  /// [liveUserPosition] to the beacon's exact location. `currentBeacon`
+  /// itself (used for the "You are near" text and as the pathfinding
+  /// start) still updates on any change, weak or not; this only gates the
+  /// harder "teleport the live arrow" behavior, which is what was making
+  /// the arrow visibly jump whenever two weak, similar-strength beacons
+  /// flapped back and forth as "nearest".
+  static const double _recalibrationMinRssi = -70.0;
+
   final StoreMap storeMap;
   final BleScannerService bleScanner;
   final MotionService motionService;
@@ -40,9 +51,13 @@ class NavigationController extends ChangeNotifier {
   Beacon? destinationBeacon;
   List<Beacon> currentPath = [];
 
+  /// Total distance of [currentPath], in meters. Null when there's no route.
+  double? currentDistanceMeters;
+
   /// Live PDR-tracked position (map units) — reset to the current beacon's
-  /// position on every new zone-snap fix, and nudged forward by each
-  /// detected step in between. Null until the first beacon fix or step.
+  /// position whenever a *strong* zone-snap fix comes in (see
+  /// [_recalibrationMinRssi]), and nudged forward by each detected step in
+  /// between. Null until the first fix or step.
   Offset? liveUserPosition;
 
   /// Live compass heading (degrees, 0 = North), for arrow rotation.
@@ -62,6 +77,7 @@ class NavigationController extends ChangeNotifier {
   void clearDestination() {
     destinationBeacon = null;
     currentPath = [];
+    currentDistanceMeters = null;
     notifyListeners();
   }
 
@@ -70,8 +86,13 @@ class NavigationController extends ChangeNotifier {
     if (nearest == null || nearest.id == currentBeacon?.id) return;
 
     currentBeacon = nearest;
-    liveUserPosition = nearest.position; // Anchor PDR drift back to the new fix.
     _recomputePath();
+
+    final strongestRssi = rssiByBleId.values.fold<double>(double.negativeInfinity, math.max);
+    if (strongestRssi >= _recalibrationMinRssi) {
+      liveUserPosition = nearest.position; // Anchor PDR drift back to a confident fix.
+    }
+
     notifyListeners();
   }
 
@@ -90,9 +111,14 @@ class NavigationController extends ChangeNotifier {
   void _recomputePath() {
     final start = currentBeacon;
     final end = destinationBeacon;
-    currentPath = (start != null && end != null)
-        ? _pathfinder.findPath(storeMap, start.id, end.id)
-        : [];
+    if (start == null || end == null) {
+      currentPath = [];
+      currentDistanceMeters = null;
+      return;
+    }
+    final result = _pathfinder.findPath(storeMap, start.id, end.id);
+    currentPath = result.path;
+    currentDistanceMeters = result.path.length >= 2 ? result.distanceUnits * storeMap.metersPerUnit : null;
   }
 
   @override
