@@ -40,36 +40,41 @@ class MapPainter extends CustomPainter {
     final scaleY = size.height / mapSize.height;
     Offset scale(Offset p) => Offset(p.dx * scaleX, p.dy * scaleY);
 
-    if (path.length > 1) {
-      final routePaint = Paint()
-        ..color = const Color(0xFF1E88E5)
-        ..strokeWidth = 7
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round;
-      final shadowPaint = Paint()
-        ..color = Colors.black.withValues(alpha: 0.18)
-        ..strokeWidth = 11
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round;
+    if (path.isNotEmpty) {
+      // A 1-beacon path means "arrived" (current beacon == destination) —
+      // there's no line to draw, but the pin should still show, not vanish
+      // along with everything else.
+      if (path.length > 1) {
+        final routePaint = Paint()
+          ..color = const Color(0xFF1E88E5)
+          ..strokeWidth = 7
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round;
+        final shadowPaint = Paint()
+          ..color = Colors.black.withValues(alpha: 0.18)
+          ..strokeWidth = 11
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round;
 
-      final routePath = Path()
-        ..moveTo(scale(path.first.position).dx, scale(path.first.position).dy);
-      for (final beacon in path.skip(1)) {
-        final p = scale(beacon.position);
-        routePath.lineTo(p.dx, p.dy);
-      }
+        final routePath = Path()
+          ..moveTo(scale(path.first.position).dx, scale(path.first.position).dy);
+        for (final beacon in path.skip(1)) {
+          final p = scale(beacon.position);
+          routePath.lineTo(p.dx, p.dy);
+        }
 
-      canvas.drawPath(routePath, shadowPaint);
-      canvas.drawPath(routePath, routePaint);
+        canvas.drawPath(routePath, shadowPaint);
+        canvas.drawPath(routePath, routePaint);
 
-      // Every waypoint except the destination gets a plain dot; the
-      // destination gets a distinct pin (drawn below) instead.
-      for (final beacon in path.sublist(0, path.length - 1)) {
-        final p = scale(beacon.position);
-        canvas.drawCircle(p, 6.5, Paint()..color = Colors.white);
-        canvas.drawCircle(p, 4.5, Paint()..color = const Color(0xFF0D47A1));
+        // Every waypoint except the destination gets a plain dot; the
+        // destination gets a distinct pin (drawn below) instead.
+        for (final beacon in path.sublist(0, path.length - 1)) {
+          final p = scale(beacon.position);
+          canvas.drawCircle(p, 6.5, Paint()..color = Colors.white);
+          canvas.drawCircle(p, 4.5, Paint()..color = const Color(0xFF0D47A1));
+        }
       }
       _drawDestinationPin(canvas, scale(path.last.position));
     }

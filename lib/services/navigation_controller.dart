@@ -38,6 +38,12 @@ class NavigationController extends ChangeNotifier {
   /// flapped back and forth as "nearest".
   static const double _recalibrationMinRssi = -70.0;
 
+  /// A newly-"nearest" beacon must win this many consecutive RSSI updates
+  /// before it's actually committed to [currentBeacon] — a single noisy
+  /// reading was enough to flip zones (and misreport which beacon you were
+  /// near) without this.
+  static const int _requiredConsecutiveReadings = 2;
+
   final StoreMap storeMap;
   final BleScannerService bleScanner;
   final MotionService motionService;
@@ -46,6 +52,10 @@ class NavigationController extends ChangeNotifier {
   StreamSubscription<Map<String, double>>? _rssiSub;
   StreamSubscription<Offset>? _stepSub;
   StreamSubscription<double>? _headingSub;
+
+  String? _pendingBeaconId;
+  int _pendingBeaconCount = 0;
+  Edge? _lastSnappedEdge;
 
   Beacon? currentBeacon;
   Beacon? destinationBeacon;
@@ -83,14 +93,34 @@ class NavigationController extends ChangeNotifier {
 
   void _onRssiUpdate(Map<String, double> rssiByBleId) {
     final nearest = _zoneSnap.nearestBeacon(rssiByBleId, storeMap);
-    if (nearest == null || nearest.id == currentBeacon?.id) return;
+    if (nearest == null) return;
+
+    if (nearest.id == currentBeacon?.id) {
+      _pendingBeaconId = null;
+      _pendingBeaconCount = 0;
+      return;
+    }
+
+    // Require a candidate to win this many consecutive updates before
+    // committing to it — a single noisy RSSI reading was enough to flip
+    // zones otherwise.
+    if (nearest.id == _pendingBeaconId) {
+      _pendingBeaconCount++;
+    } else {
+      _pendingBeaconId = nearest.id;
+      _pendingBeaconCount = 1;
+    }
+    if (_pendingBeaconCount < _requiredConsecutiveReadings) return;
 
     currentBeacon = nearest;
+    _pendingBeaconId = null;
+    _pendingBeaconCount = 0;
     _recomputePath();
 
     final strongestRssi = rssiByBleId.values.fold<double>(double.negativeInfinity, math.max);
     if (strongestRssi >= _recalibrationMinRssi) {
       liveUserPosition = nearest.position; // Anchor PDR drift back to a confident fix.
+      _lastSnappedEdge = null; // Fresh anchor — let the next step pick a natural starting edge.
     }
 
     notifyListeners();
@@ -101,7 +131,9 @@ class NavigationController extends ChangeNotifier {
     if (base == null) return; // No fix yet to walk from.
     // Clamp onto the corridor graph — free 2D dead reckoning would
     // otherwise happily drift into room interiors, which have no edges.
-    liveUserPosition = storeMap.snapToGraph(base + delta);
+    final snapped = storeMap.snapToGraph(base + delta, preferredEdge: _lastSnappedEdge);
+    liveUserPosition = snapped.point;
+    _lastSnappedEdge = snapped.edge;
     notifyListeners();
   }
 
@@ -120,7 +152,11 @@ class NavigationController extends ChangeNotifier {
     }
     final result = _pathfinder.findPath(storeMap, start.id, end.id);
     currentPath = result.path;
-    currentDistanceMeters = result.path.length >= 2 ? result.distanceUnits * storeMap.metersPerUnit : null;
+    // >= 1, not >= 2: a 1-beacon path means "arrived" (start == destination)
+    // and should show 0 m, not disappear — a null here previously made
+    // MapPainter hide the distance/pin/everything, as if there were no
+    // route at all.
+    currentDistanceMeters = result.path.isNotEmpty ? result.distanceUnits * storeMap.metersPerUnit : null;
   }
 
   @override

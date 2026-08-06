@@ -107,22 +107,37 @@ class StoreMap {
   /// clamped to that segment's endpoints. Used to keep PDR-tracked movement
   /// confined to walkable corridors instead of drifting into room
   /// interiors, which have no edges of their own.
-  Offset snapToGraph(Offset point) {
+  ///
+  /// [preferredEdge] (typically the edge chosen last call) gets a distance
+  /// discount before comparing, so a noisy/imprecise raw point doesn't
+  /// flip-flop between two similarly-close edges on every step — it only
+  /// switches corridors when another edge is *meaningfully* closer, not
+  /// just marginally closer. The edge actually chosen is returned alongside
+  /// the point so the caller can pass it back in as next call's preference.
+  ({Offset point, Edge? edge}) snapToGraph(Offset point, {Edge? preferredEdge}) {
     Offset? closest;
-    var bestDistanceSquared = double.infinity;
+    Edge? closestEdge;
+    var bestScore = double.infinity;
     for (final edge in edges) {
       final a = beaconById(edge.from)?.position;
       final b = beaconById(edge.to)?.position;
       if (a == null || b == null) continue;
       final projected = _projectOntoSegment(point, a, b);
-      final d = (projected - point).distanceSquared;
-      if (d < bestDistanceSquared) {
-        bestDistanceSquared = d;
+      var score = (projected - point).distanceSquared;
+      if (preferredEdge != null && _sameEdge(edge, preferredEdge)) {
+        score *= 0.5; // Bias toward staying on the corridor already being walked.
+      }
+      if (score < bestScore) {
+        bestScore = score;
         closest = projected;
+        closestEdge = edge;
       }
     }
-    return closest ?? point;
+    return (point: closest ?? point, edge: closestEdge);
   }
+
+  bool _sameEdge(Edge a, Edge b) =>
+      (a.from == b.from && a.to == b.to) || (a.from == b.to && a.to == b.from);
 
   Offset _projectOntoSegment(Offset p, Offset a, Offset b) {
     final ab = b - a;

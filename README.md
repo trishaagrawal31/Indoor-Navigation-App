@@ -180,6 +180,35 @@ position, correcting drift. See `MotionService`
   `Icon`'s glyph via `TextPainter` inside a `CustomPainter`) at the last
   beacon in the route, instead of the plain dot every other waypoint gets —
   makes the endpoint visually distinct from the path it took to get there.
+- **"Arrived" no longer blanks the UI**: when `currentBeacon` equals
+  `destinationBeacon`, `PathfindingService.findPath` correctly returns a
+  1-beacon path (nothing to walk) — but `MapPainter` used to only draw
+  *anything* `if (path.length > 1)`, so arriving made the route line, pin,
+  distance, and directions all vanish together, indistinguishable from "no
+  route selected." It now always draws the destination pin whenever `path`
+  is non-empty, and `NavigationController` reports `0 m` instead of `null`
+  distance for a 1-beacon path.
+- **Beacon-flip debounce**: `NavigationController._onRssiUpdate` now
+  requires a candidate "nearest beacon" to win `_requiredConsecutiveReadings`
+  (2) updates in a row before committing it to `currentBeacon` — a single
+  noisy RSSI reading was previously enough to flip zones outright, which is
+  a likely cause of the app reporting a beacon that didn't match physical
+  reality. **This can only filter noise, not fix a wrong `bleId`-to-position
+  mapping** — if `store_data.json`'s `beacons[].bleId` values don't
+  correspond to where those physical beacons are actually mounted, no
+  amount of software debouncing will report the correct zone. Worth
+  re-verifying against nRF Connect (as done for the original `b1`) if
+  misidentification continues after this.
+- **Edge-stickiness**: `StoreMap.snapToGraph` now takes an optional
+  `preferredEdge` and discounts its distance before comparing, so a noisy
+  step doesn't flip the live position to a different, similarly-close
+  corridor edge on every update — `NavigationController` tracks
+  `_lastSnappedEdge` and passes it back in each call. This graph is small
+  enough (4 short edges) that PDR error from a single step can be a
+  significant fraction of an entire edge's length, so some jumpiness here
+  is a real precision limit of step-based positioning at this map's scale,
+  not purely a smoothing bug — expect it to improve as `metersPerUnit` gets
+  more accurately calibrated (see above), not fully disappear.
 
 ## Route distance
 
