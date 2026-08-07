@@ -27,14 +27,6 @@ class NavigationController extends ChangeNotifier {
     _headingSub = motionService.headingStream.listen(_onHeading);
   }
 
-  /// How far (0-1) each new BLE position estimate (see
-  /// [ZoneSnapService.estimatePosition]) pulls [liveUserPosition] toward
-  /// it, rather than snapping straight to it. Weak/noisy estimates already
-  /// carry little weight in the centroid itself, so this just keeps the
-  /// *correction* gradual too — reads as continuously walking with drift
-  /// being nudged out, not a teleport, every time a fix arrives.
-  static const double _bleCorrectionFactor = 0.35;
-
   /// A newly-"nearest" beacon must win this many consecutive RSSI updates
   /// before it's actually committed to [currentBeacon] — a single noisy
   /// reading was enough to flip zones (and misreport which beacon you were
@@ -61,10 +53,10 @@ class NavigationController extends ChangeNotifier {
   /// Total distance of [currentPath], in meters. Null when there's no route.
   double? currentDistanceMeters;
 
-  /// Live PDR-tracked position (map units) — eased toward each new BLE
-  /// position estimate (see [_bleCorrectionFactor]) to correct drift, and
-  /// nudged forward by each detected step in between. Null until the
-  /// first fix or step.
+  /// Live PDR-tracked position (map units) — reset to the current beacon's
+  /// position whenever a confirmed zone-snap fix comes in, and nudged
+  /// forward by each detected step in between. Null until the first fix
+  /// or step.
   Offset? liveUserPosition;
 
   /// Live compass heading (degrees, 0 = North), for arrow rotation.
@@ -89,43 +81,40 @@ class NavigationController extends ChangeNotifier {
   }
 
   void _onRssiUpdate(Map<String, double> rssiByBleId) {
+    // nearestBeacon is the beacon closest to the RSSI-weighted centroid of
+    // every visible beacon (see ZoneSnapService), not just whichever one
+    // reads loudest — that's what makes the *node it jumps to* accurate.
     final nearest = _zoneSnap.nearestBeacon(rssiByBleId, storeMap);
     if (nearest == null) return;
 
-    var beaconChanged = false;
     if (nearest.id == currentBeacon?.id) {
       _pendingBeaconId = null;
       _pendingBeaconCount = 0;
-    } else {
-      // Require a candidate to win this many consecutive updates before
-      // committing to it — a single noisy RSSI reading was enough to flip
-      // zones otherwise.
-      if (nearest.id == _pendingBeaconId) {
-        _pendingBeaconCount++;
-      } else {
-        _pendingBeaconId = nearest.id;
-        _pendingBeaconCount = 1;
-      }
-      if (_pendingBeaconCount >= _requiredConsecutiveReadings) {
-        currentBeacon = nearest;
-        _pendingBeaconId = null;
-        _pendingBeaconCount = 0;
-        beaconChanged = true;
-      }
+      return;
     }
-    if (beaconChanged) _recomputePath();
 
-    // Blend toward the multi-beacon position estimate every update — not
-    // just on a zone flip — so BLE correction and PDR stepping both feed
-    // one continuously-moving position instead of PDR-drift-then-teleport.
-    final estimate = _zoneSnap.estimatePosition(rssiByBleId, storeMap);
-    if (estimate != null) {
-      final snapped = storeMap.snapToGraph(estimate, preferredEdge: _lastSnappedEdge);
-      liveUserPosition = liveUserPosition == null
-          ? snapped.point
-          : Offset.lerp(liveUserPosition, snapped.point, _bleCorrectionFactor);
-      _lastSnappedEdge = snapped.edge;
+    // Require a candidate to win this many consecutive updates before
+    // committing to it — a single noisy RSSI reading was enough to flip
+    // zones otherwise.
+    if (nearest.id == _pendingBeaconId) {
+      _pendingBeaconCount++;
+    } else {
+      _pendingBeaconId = nearest.id;
+      _pendingBeaconCount = 1;
     }
+    if (_pendingBeaconCount < _requiredConsecutiveReadings) return;
+
+    currentBeacon = nearest;
+    _pendingBeaconId = null;
+    _pendingBeaconCount = 0;
+    _recomputePath();
+
+    // Jump straight to the confirmed beacon's node. A blended/interpolated
+    // position (tried previously) overshot toward whatever beacon was
+    // merely in range — including the destination's — rather than
+    // reflecting the node debouncing actually confirmed you'd reached.
+    liveUserPosition = nearest.position;
+    _lastSnappedEdge = null; // Fresh anchor — let the next step pick a natural starting edge.
 
     notifyListeners();
   }

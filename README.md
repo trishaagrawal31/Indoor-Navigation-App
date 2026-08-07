@@ -63,15 +63,15 @@ Edit `assets/store_data.json`:
   differentiated only by minor, so the UUID alone isn't a safe key — always
   set all three. Confirmed working for `b1` (verified against nRF Connect's
   raw advertisement view: Company `Apple, Inc. <0x004C>`, Type `Beacon
-  <0x02>`, UUID `01020304-...`, Major `256`, Minor `1`); `b2`–`b4` currently
-  guess the same UUID/major with minors `2`–`4` as placeholders — replace
-  once you confirm each physical beacon's actual minor (e.g. via nRF
-  Connect, or the `[BLE]` debug log below).
-- `BleScannerService._onDeviceSeen` currently has a **temporary debug
-  `debugPrint`** that dumps every advertisement seen (id, rssi, raw
-  manufacturer data, service data/UUIDs, and the parsed iBeacon if any) —
-  useful for finding a beacon's real major/minor or diagnosing why it isn't
-  showing up. Remove it once detection is confirmed working end-to-end.
+  <0x02>`, UUID `01020304-...`, Major `256`, Minor `1`); `b2`–`b4` are now
+  confirmed against their real physical positions too. If you re-wire
+  beacons later and need to re-diagnose, `BleScannerService._onDeviceSeen`
+  previously had a temporary `debugPrint` dumping every advertisement seen,
+  and `MainActivity.kt` a raw `BluetoothLeScanner` diagnostic (tag
+  `RAWBLE`) that bypassed the Flutter plugin entirely to check whether the
+  OS saw a beacon at all — both were removed once detection was confirmed
+  working end-to-end; re-add similar logging temporarily if needed rather
+  than leaving it in permanently.
 - **If a beacon still doesn't show up**, check `local_packages/reactive_ble_mobile/android/.../ble/ReactiveBleClient.kt`'s
   `scanForDevices` — it previously called `.setLegacy(false)` on
   `ScanSettings.Builder`, which tells Android to report only Bluetooth 5
@@ -137,29 +137,26 @@ position, correcting drift. See `MotionService`
   handles the 0°/360° wraparound correctly) before using a heading for
   anything. Tune via the `alpha` default in `_smoothHeading` if turns feel
   too laggy (higher alpha) or still too jumpy (lower alpha).
-- **Multi-beacon position estimate, not winner-take-all**: `ZoneSnapService`
-  used to snap `liveUserPosition` straight to whichever single beacon read
+- **Multi-beacon vote for *which node*, not winner-take-all**:
+  `ZoneSnapService` used to snap to whichever single beacon read
   strongest — noisy indoors, since a farther beacon can transiently
   out-read a closer one, which was exactly the "shows me at the wrong room"
-  symptom even with all 4 beacons correctly labeled. `estimatePosition` now
+  symptom even with all 4 beacons correctly labeled. `estimatePosition`
   computes an RSSI-weighted centroid of *every* currently-visible beacon
   (RSSI converted dBm → linear power via `10^(rssi/10)` so the weighting
-  tracks physical distance, not the log scale) — a single noisy strong
+  tracks physical distance, not the log scale); `nearestBeacon` picks
+  whichever beacon is closest to that centroid, so one noisy strong
   reading gets outvoted by the other beacons still in range instead of
-  winning outright. `nearestBeacon` (used for `currentBeacon`/pathfinding
-  start) is derived from that same centroid rather than the raw strongest
-  reading, so it inherits the same noise resistance.
-- **Continuous BLE correction, not teleport-on-flip**: `NavigationController`
-  used to only touch `liveUserPosition` when `currentBeacon` actually
-  changed zones, and then jumped straight to the new beacon's exact
-  position. It now eases `liveUserPosition` toward each new position
-  estimate every RSSI update (`Offset.lerp` with `_bleCorrectionFactor =
-  0.35`), independent of whether the zone label changed — PDR drift gets
-  corrected continuously instead of in discrete jumps at zone boundaries,
-  which is what makes the live position track more like a mall nav app's
-  blue dot. `currentBeacon` itself still only flips after
-  `_requiredConsecutiveReadings` (below), since the route/label are
-  discrete by nature (Dijkstra needs a beacon node to start from).
+  winning outright.
+- **Node-to-node jumps, not a continuous blend**: a continuous
+  `Offset.lerp` toward the multi-beacon centroid was tried and reverted —
+  it could overshoot toward the destination's beacon merely because it was
+  in range, well before you'd actually walked there. `liveUserPosition`
+  now jumps straight to `currentBeacon.position` only once a candidate has
+  won `_requiredConsecutiveReadings` (below) — discrete but reliably
+  correct — and PDR (`_onStepDelta`) fills in the continuous motion
+  *between* those confirmed nodes, clamped to `storeMap.snapToGraph` so it
+  stays on the walkable corridor rather than free-drifting.
 - **Permissions**: step counting needs `ACTIVITY_RECOGNITION`
   (`AndroidManifest.xml`, API 29+) / `NSMotionUsageDescription`
   (`Info.plist`), requested at runtime by `MotionService.start()` the same
