@@ -34,6 +34,17 @@ class NavigationController extends ChangeNotifier {
   /// near) without this.
   static const int _requiredConsecutiveReadings = 2;
 
+  /// Assumed walking pace (m/s) [liveUserPosition] glides toward
+  /// [_targetPosition] at, instead of teleporting straight to it whenever
+  /// PDR steps or a confirmed beacon fix move the target. This is what
+  /// makes movement read as continuous walking rather than discrete jumps
+  /// — between nodes (PDR updates the target in small increments already)
+  /// and at nodes (a BLE-confirmed fix can move the target further in one
+  /// go, but the pin still glides there rather than teleporting).
+  static const double _walkingSpeedMetersPerSecond = 1.3;
+
+  static const Duration _followTickInterval = Duration(milliseconds: 80);
+
   final StoreMap storeMap;
   final BleScannerService bleScanner;
   final MotionService motionService;
@@ -42,6 +53,8 @@ class NavigationController extends ChangeNotifier {
   StreamSubscription<Map<String, double>>? _rssiSub;
   StreamSubscription<double>? _stepSub;
   StreamSubscription<double>? _headingSub;
+  Timer? _followTimer;
+  DateTime? _lastFollowTick;
 
   String? _pendingBeaconId;
   int _pendingBeaconCount = 0;
@@ -54,10 +67,16 @@ class NavigationController extends ChangeNotifier {
   /// Total distance of [currentPath], in meters. Null when there's no route.
   double? currentDistanceMeters;
 
-  /// Live PDR-tracked position (map units) — reset to the current beacon's
-  /// position whenever a confirmed zone-snap fix comes in, and nudged
-  /// forward by each detected step in between. Null until the first fix
-  /// or step.
+  /// Where PDR steps and confirmed BLE fixes say the user actually is
+  /// (map units) — updated instantly, but not drawn directly; see
+  /// [liveUserPosition].
+  Offset? _targetPosition;
+
+  /// The drawn/tracked live position (map units) — continuously eased
+  /// toward [_targetPosition] at [_walkingSpeedMetersPerSecond] by
+  /// [_advanceTowardTarget], so both PDR stepping *and* a beacon
+  /// confirming you've reached the next node read as one continuous walk
+  /// rather than a teleport at each node. Null until the first fix or step.
   Offset? liveUserPosition;
 
   /// Live compass heading (degrees, 0 = North), for arrow rotation.
@@ -66,6 +85,7 @@ class NavigationController extends ChangeNotifier {
   void start() {
     bleScanner.startScan();
     motionService.start();
+    _followTimer ??= Timer.periodic(_followTickInterval, (_) => _advanceTowardTarget());
   }
 
   void setDestination(Beacon beacon) {
@@ -110,18 +130,17 @@ class NavigationController extends ChangeNotifier {
     _pendingBeaconCount = 0;
     _recomputePath();
 
-    // Jump straight to the confirmed beacon's node. A blended/interpolated
-    // position (tried previously) overshot toward whatever beacon was
-    // merely in range — including the destination's — rather than
-    // reflecting the node debouncing actually confirmed you'd reached.
-    liveUserPosition = nearest.position;
+    // Move the *target* to the confirmed beacon's node — liveUserPosition
+    // still glides there via _advanceTowardTarget rather than teleporting,
+    // so a node confirmation reads as arriving, not jumping.
+    _targetPosition = nearest.position;
     _lastSnappedEdge = null; // Fresh anchor — let the next step pick a natural starting edge.
 
     notifyListeners();
   }
 
   void _onStepDistance(double distanceMeters) {
-    final base = liveUserPosition ?? currentBeacon?.position;
+    final base = _targetPosition ?? currentBeacon?.position;
     if (base == null) return; // No fix yet to walk from.
 
     final distanceUnits = distanceMeters / storeMap.metersPerUnit;
@@ -131,9 +150,11 @@ class NavigationController extends ChangeNotifier {
     // Clamp onto the corridor graph — even path-aimed movement can cut a
     // straight-line corner through a room interior, which has no edges.
     final snapped = storeMap.snapToGraph(base + delta, preferredEdge: _lastSnappedEdge);
-    liveUserPosition = snapped.point;
+    _targetPosition = snapped.point;
     _lastSnappedEdge = snapped.edge;
-    notifyListeners();
+    // liveUserPosition itself is advanced by _advanceTowardTarget on its
+    // own ticker, not here — that's what keeps it moving continuously
+    // between step events instead of jumping once per detected step.
   }
 
   /// Which way to advance this step. Indoor compass headings are noisy
@@ -168,26 +189,66 @@ class NavigationController extends ChangeNotifier {
     return path[index + 1].position;
   }
 
+  /// Eases [liveUserPosition] toward [_targetPosition] at a capped walking
+  /// pace, ticked every [_followTickInterval] — the single mechanism that
+  /// turns every discrete position update (a PDR step, or a beacon
+  /// confirming a new node) into continuous, live motion on screen.
+  void _advanceTowardTarget() {
+    final target = _targetPosition;
+    if (target == null) return;
+
+    final current = liveUserPosition;
+    if (current == null) {
+      // Nothing to glide from yet — the very first fix appears immediately.
+      liveUserPosition = target;
+      _lastFollowTick = DateTime.now();
+      notifyListeners();
+      return;
+    }
+
+    final now = DateTime.now();
+    final last = _lastFollowTick;
+    _lastFollowTick = now;
+    final dtSeconds =
+        last == null ? _followTickInterval.inMilliseconds / 1000 : now.difference(last).inMicroseconds / 1e6;
+
+    final toTarget = target - current;
+    final remaining = toTarget.distance;
+    if (remaining < 0.001) return; // Already there — nothing to animate.
+
+    final maxMoveUnits = (_walkingSpeedMetersPerSecond / storeMap.metersPerUnit) * dtSeconds;
+    final moveBy = math.min(maxMoveUnits, remaining);
+    final next = current + toTarget / remaining * moveBy;
+
+    final snapped = storeMap.snapToGraph(next, preferredEdge: _lastSnappedEdge);
+    liveUserPosition = snapped.point;
+    _lastSnappedEdge = snapped.edge;
+    notifyListeners();
+  }
+
   void _onHeading(double heading) {
     headingDegrees = heading;
     notifyListeners();
   }
 
+  /// Recomputes [currentPath]/[currentDistanceMeters] for the current
+  /// [currentBeacon] → [destinationBeacon] pair. Deliberately leaves the
+  /// existing route on screen untouched if there's no beacon fix yet or no
+  /// path could be found — the route should only ever go away because the
+  /// user cleared it ([clearDestination]) or picked a different
+  /// destination ([setDestination]), never because of a transient
+  /// recompute glitch mid-walk.
   void _recomputePath() {
     final start = currentBeacon;
     final end = destinationBeacon;
-    if (start == null || end == null) {
-      currentPath = [];
-      currentDistanceMeters = null;
-      return;
-    }
+    if (end == null) return; // clearDestination() already blanked currentPath itself.
+    if (start == null) return; // No beacon fix yet — keep whatever was last shown.
+
     final result = _pathfinder.findPath(storeMap, start.id, end.id);
+    if (result.path.isEmpty) return; // No route found — keep the last known-good one rather than hiding it.
+
     currentPath = result.path;
-    // >= 1, not >= 2: a 1-beacon path means "arrived" (start == destination)
-    // and should show 0 m, not disappear — a null here previously made
-    // MapPainter hide the distance/pin/everything, as if there were no
-    // route at all.
-    currentDistanceMeters = result.path.isNotEmpty ? result.distanceUnits * storeMap.metersPerUnit : null;
+    currentDistanceMeters = result.distanceUnits * storeMap.metersPerUnit;
   }
 
   @override
@@ -195,6 +256,7 @@ class NavigationController extends ChangeNotifier {
     _rssiSub?.cancel();
     _stepSub?.cancel();
     _headingSub?.cancel();
+    _followTimer?.cancel();
     bleScanner.dispose();
     motionService.dispose();
     super.dispose();

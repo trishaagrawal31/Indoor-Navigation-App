@@ -362,9 +362,9 @@ class _StatusCard extends StatelessWidget {
 
 /// Draws the map + live arrow. The arrow's on-screen position is animated
 /// (tweened) between updates rather than redrawn instantly at each new
-/// [NavigationController.liveUserPosition] — steps are discrete,
-/// infrequent events, so without this the arrow visibly "jumps" from spot
-/// to spot instead of reading as continuous walking motion.
+/// [NavigationController.liveUserPosition] — smooths over the gaps between
+/// its ~80ms position ticks so motion reads as fluid rather than a series
+/// of tiny discrete hops.
 class _MapFrame extends StatefulWidget {
   const _MapFrame({required this.controller, required this.storeMap});
 
@@ -383,7 +383,11 @@ class _MapFrameState extends State<_MapFrame> with SingleTickerProviderStateMixi
   @override
   void initState() {
     super.initState();
-    _positionAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 350))
+    // Shorter than the old 350ms: NavigationController now emits position
+    // updates continuously (~every 80ms) rather than in one lump per
+    // detected step, so a long ease here would just stack lag on top of
+    // lag instead of smoothing anything.
+    _positionAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 120))
       ..addListener(() => setState(() {}));
     _animTo = widget.controller.liveUserPosition;
     widget.controller.addListener(_onControllerChanged);

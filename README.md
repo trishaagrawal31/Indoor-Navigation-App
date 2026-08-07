@@ -161,15 +161,24 @@ and `NavigationController`'s `_onStepDistance`/`_onRssiUpdate`
   whichever beacon is closest to that centroid, so one noisy strong
   reading gets outvoted by the other beacons still in range instead of
   winning outright.
-- **Node-to-node jumps, not a continuous blend**: a continuous
-  `Offset.lerp` toward the multi-beacon centroid was tried and reverted —
-  it could overshoot toward the destination's beacon merely because it was
-  in range, well before you'd actually walked there. `liveUserPosition`
-  now jumps straight to `currentBeacon.position` only once a candidate has
-  won `_requiredConsecutiveReadings` (below) — discrete but reliably
-  correct — and PDR (`_onStepDelta`) fills in the continuous motion
-  *between* those confirmed nodes, clamped to `storeMap.snapToGraph` so it
-  stays on the walkable corridor rather than free-drifting.
+- **Target vs. drawn position — a continuous "chase"**: `NavigationController`
+  tracks two positions. `_targetPosition` is the *logical* best-known spot
+  (an earlier `Offset.lerp` toward a multi-beacon centroid was tried here
+  and reverted — it could overshoot toward the destination's beacon merely
+  because it was in range, well before you'd actually walked there — so
+  the target now only ever moves in two well-justified ways: PDR steps
+  nudging it along `_stepDirection`, or a beacon winning
+  `_requiredConsecutiveReadings` and snapping it straight to that node's
+  known position). `liveUserPosition` — what's actually drawn — is never
+  set directly; `_advanceTowardTarget` (ticked every 80ms) continuously
+  eases it toward `_targetPosition` at a capped `_walkingSpeedMetersPerSecond`
+  (1.3 m/s). That's what makes *both* PDR stepping *and* a node
+  confirmation read as one continuous walk instead of a series of jumps —
+  a confirmed beacon fix no longer teleports the pin, it just moves the
+  target, which the pin then walks toward at a natural pace. Both the
+  target's updates and the chase's ticks run through
+  `storeMap.snapToGraph`, so the pin stays on the walkable corridor
+  throughout, never free-drifting through a room interior.
 - **Permissions**: step counting needs `ACTIVITY_RECOGNITION`
   (`AndroidManifest.xml`, API 29+) / `NSMotionUsageDescription`
   (`Info.plist`), requested at runtime by `MotionService.start()` the same
@@ -254,6 +263,15 @@ above), treat this distance as approximate too.
   **44 m**. That exact match is what a wrong-destination selection looks
   like; it isn't reproducible from a `metersPerUnit`/edge-weight bug given
   the numbers above.
+- **The route no longer disappears on its own.** `_recomputePath`
+  (`NavigationController`) used to blank `currentPath`/`currentDistanceMeters`
+  whenever `currentBeacon` was momentarily null or `PathfindingService`
+  came back empty — which could happen transiently mid-walk, hiding the
+  route line, destination pin, and directions chips for no reason visible
+  to the user. It now leaves the existing route on screen untouched in
+  both cases and only ever replaces or clears it for one of two
+  intentional reasons: `setDestination` (a genuinely new destination) or
+  `clearDestination` (the map card's refresh button).
 
 ## Item search
 
