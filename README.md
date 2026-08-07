@@ -14,7 +14,7 @@ lib/
     store_data_repository.dart   Loads assets/store_data.json
     ble_scanner_service.dart     flutter_reactive_ble scan, 3s rolling RSSI avg
     motion_service.dart          pedometer step distance + gyroscope/compass fused heading
-    zone_snap_service.dart       RSSI-weighted multi-beacon centroid -> position + nearest beacon
+    zone_snap_service.dart       RSSI -> distance -> trilaterated position + nearest beacon
     pathfinding_service.dart     Dijkstra over the beacon graph
     navigation_controller.dart   Wires the above into app state (ChangeNotifier)
   ui/
@@ -150,35 +150,46 @@ and `NavigationController`'s `_onStepDistance`/`_onRssiUpdate`
   weight `0.08`) rather than trusting either sensor alone. Tune that weight
   if turns feel laggy (raise it) or the heading drifts/jitters between
   compass fixes (lower it).
-- **Multi-beacon vote for *which node*, not winner-take-all**:
+- **Trilateration, not winner-take-all or a bare signal-weighted average**:
   `ZoneSnapService` used to snap to whichever single beacon read
   strongest — noisy indoors, since a farther beacon can transiently
   out-read a closer one, which was exactly the "shows me at the wrong room"
-  symptom even with all 4 beacons correctly labeled. `estimatePosition`
-  computes an RSSI-weighted centroid of *every* currently-visible beacon
-  (RSSI converted dBm → linear power via `10^(rssi/10)` so the weighting
-  tracks physical distance, not the log scale); `nearestBeacon` picks
-  whichever beacon is closest to that centroid, so one noisy strong
-  reading gets outvoted by the other beacons still in range instead of
-  winning outright.
+  symptom even with all 4 beacons correctly labeled. A signal-weighted
+  centroid was tried after that (RSSI → linear power via `10^(rssi/10)`,
+  averaged); it fixed *which node* got picked but, fed continuously into
+  the live position, could overshoot toward a beacon just because it was
+  in range — a proximity-weighted average doesn't reason about *absolute*
+  distance. `estimatePosition` now does real multilateration: each
+  beacon's RSSI is converted to an estimated distance in meters (a
+  log-distance path-loss model, `_txPowerAt1m`/`_pathLossExponent` — not
+  per-beacon calibrated, so treat distances as approximate), then solves
+  (weighted least squares, closed-form for 2 unknowns) for the point
+  consistent with *all* those distances — with >=3 beacons in range.
+  Falls back to a distance-weighted centroid with only 1-2 beacons, or
+  when the visible beacons are too close to collinear to solve (common
+  here, since they're mounted along corridors rather than spread in a
+  grid) — the solver's determinant check and a map-bounds plausibility
+  check both guard against a degenerate solve shooting off to a
+  nonsensical point. `nearestBeacon` picks whichever known beacon is
+  closest to that estimate, for `currentBeacon`/pathfinding.
 - **Target vs. drawn position — a continuous "chase"**: `NavigationController`
-  tracks two positions. `_targetPosition` is the *logical* best-known spot
-  (an earlier `Offset.lerp` toward a multi-beacon centroid was tried here
-  and reverted — it could overshoot toward the destination's beacon merely
-  because it was in range, well before you'd actually walked there — so
-  the target now only ever moves in two well-justified ways: PDR steps
-  nudging it along `_stepDirection`, or a beacon winning
-  `_requiredConsecutiveReadings` and snapping it straight to that node's
-  known position). `liveUserPosition` — what's actually drawn — is never
-  set directly; `_advanceTowardTarget` (ticked every 80ms) continuously
-  eases it toward `_targetPosition` at a capped `_walkingSpeedMetersPerSecond`
-  (1.3 m/s). That's what makes *both* PDR stepping *and* a node
-  confirmation read as one continuous walk instead of a series of jumps —
-  a confirmed beacon fix no longer teleports the pin, it just moves the
-  target, which the pin then walks toward at a natural pace. Both the
-  target's updates and the chase's ticks run through
-  `storeMap.snapToGraph`, so the pin stays on the walkable corridor
-  throughout, never free-drifting through a room interior.
+  tracks two positions. `_targetPosition` is the *logical* best-known
+  spot, updated continuously by *both* PDR steps (`_stepDirection`) *and*
+  every BLE reading's trilaterated estimate (`_onRssiUpdate`) — not just
+  once a node flip is confirmed, which is what lets the pin keep moving
+  and stay roughly accurate *between* beacons rather than only updating at
+  them. `liveUserPosition` — what's actually drawn — is never set
+  directly; `_advanceTowardTarget` (ticked every 80ms) continuously eases
+  it toward `_targetPosition` at a capped `_walkingSpeedMetersPerSecond`
+  (1.3 m/s). That speed cap is deliberate: even if a given trilateration
+  reading is briefly noisy, the drawn pin can only be pulled by that much
+  before the next (hopefully better) reading corrects it, rather than
+  visibly teleporting — the mechanism that made the earlier
+  proximity-centroid approach's overshoot-toward-destination bug possible
+  no longer exists structurally. Both the target's updates and the
+  chase's ticks run through `storeMap.snapToGraph`, so the pin stays on
+  the walkable corridor throughout, never free-drifting through a room
+  interior.
 - **Permissions**: step counting needs `ACTIVITY_RECOGNITION`
   (`AndroidManifest.xml`, API 29+) / `NSMotionUsageDescription`
   (`Info.plist`), requested at runtime by `MotionService.start()` the same

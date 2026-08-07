@@ -102,39 +102,45 @@ class NavigationController extends ChangeNotifier {
   }
 
   void _onRssiUpdate(Map<String, double> rssiByBleId) {
-    // nearestBeacon is the beacon closest to the RSSI-weighted centroid of
-    // every visible beacon (see ZoneSnapService), not just whichever one
-    // reads loudest — that's what makes the *node it jumps to* accurate.
+    // nearestBeacon is the beacon closest to the trilaterated position
+    // estimate (see ZoneSnapService), not just whichever one reads
+    // loudest — that's what makes the discrete "which node" call accurate.
     final nearest = _zoneSnap.nearestBeacon(rssiByBleId, storeMap);
-    if (nearest == null) return;
-
-    if (nearest.id == currentBeacon?.id) {
-      _pendingBeaconId = null;
-      _pendingBeaconCount = 0;
-      return;
+    if (nearest != null) {
+      if (nearest.id == currentBeacon?.id) {
+        _pendingBeaconId = null;
+        _pendingBeaconCount = 0;
+      } else {
+        // Require a candidate to win this many consecutive updates before
+        // committing to it — a single noisy RSSI reading was enough to
+        // flip zones otherwise.
+        if (nearest.id == _pendingBeaconId) {
+          _pendingBeaconCount++;
+        } else {
+          _pendingBeaconId = nearest.id;
+          _pendingBeaconCount = 1;
+        }
+        if (_pendingBeaconCount >= _requiredConsecutiveReadings) {
+          currentBeacon = nearest;
+          _pendingBeaconId = null;
+          _pendingBeaconCount = 0;
+          _recomputePath();
+        }
+      }
     }
 
-    // Require a candidate to win this many consecutive updates before
-    // committing to it — a single noisy RSSI reading was enough to flip
-    // zones otherwise.
-    if (nearest.id == _pendingBeaconId) {
-      _pendingBeaconCount++;
-    } else {
-      _pendingBeaconId = nearest.id;
-      _pendingBeaconCount = 1;
+    // Triangulate a position from *every* currently-visible beacon on
+    // every update, not just once a node flip is confirmed — this is what
+    // keeps the pin approximating real position (and moving) between
+    // beacons, corrected by live BLE geometry rather than only PDR
+    // dead-reckoning. liveUserPosition still glides toward this via
+    // _advanceTowardTarget rather than teleporting to it.
+    final estimate = _zoneSnap.estimatePosition(rssiByBleId, storeMap);
+    if (estimate != null) {
+      final snapped = storeMap.snapToGraph(estimate, preferredEdge: _lastSnappedEdge);
+      _targetPosition = snapped.point;
+      _lastSnappedEdge = snapped.edge;
     }
-    if (_pendingBeaconCount < _requiredConsecutiveReadings) return;
-
-    currentBeacon = nearest;
-    _pendingBeaconId = null;
-    _pendingBeaconCount = 0;
-    _recomputePath();
-
-    // Move the *target* to the confirmed beacon's node — liveUserPosition
-    // still glides there via _advanceTowardTarget rather than teleporting,
-    // so a node confirmation reads as arriving, not jumping.
-    _targetPosition = nearest.position;
-    _lastSnappedEdge = null; // Fresh anchor — let the next step pick a natural starting edge.
 
     notifyListeners();
   }
