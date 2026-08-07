@@ -14,6 +14,7 @@ dependencies:
   permission_handler: ^11.3.1
   pedometer: ^4.0.2
   flutter_compass: ^0.8.1
+  sensors_plus: ^7.1.0
 
 dependency_overrides:
   reactive_ble_mobile:

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' show Offset;
 
 import 'package:flutter/foundation.dart';
@@ -23,7 +24,7 @@ class NavigationController extends ChangeNotifier {
   })  : _zoneSnap = zoneSnap ?? ZoneSnapService(),
         _pathfinder = pathfinder ?? PathfindingService() {
     _rssiSub = bleScanner.rssiStream.listen(_onRssiUpdate);
-    _stepSub = motionService.positionDeltas.listen(_onStepDelta);
+    _stepSub = motionService.stepDistances.listen(_onStepDistance);
     _headingSub = motionService.headingStream.listen(_onHeading);
   }
 
@@ -39,7 +40,7 @@ class NavigationController extends ChangeNotifier {
   final ZoneSnapService _zoneSnap;
   final PathfindingService _pathfinder;
   StreamSubscription<Map<String, double>>? _rssiSub;
-  StreamSubscription<Offset>? _stepSub;
+  StreamSubscription<double>? _stepSub;
   StreamSubscription<double>? _headingSub;
 
   String? _pendingBeaconId;
@@ -119,15 +120,52 @@ class NavigationController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _onStepDelta(Offset delta) {
+  void _onStepDistance(double distanceMeters) {
     final base = liveUserPosition ?? currentBeacon?.position;
     if (base == null) return; // No fix yet to walk from.
-    // Clamp onto the corridor graph — free 2D dead reckoning would
-    // otherwise happily drift into room interiors, which have no edges.
+
+    final distanceUnits = distanceMeters / storeMap.metersPerUnit;
+    final delta = _stepDirection(base, distanceUnits);
+    if (delta == null) return; // No route, and no heading yet either — nothing to go on.
+
+    // Clamp onto the corridor graph — even path-aimed movement can cut a
+    // straight-line corner through a room interior, which has no edges.
     final snapped = storeMap.snapToGraph(base + delta, preferredEdge: _lastSnappedEdge);
     liveUserPosition = snapped.point;
     _lastSnappedEdge = snapped.edge;
     notifyListeners();
+  }
+
+  /// Which way to advance this step. Indoor compass headings are noisy
+  /// (see [MotionService]) — when there's an active route, walking toward
+  /// the next waypoint on it is far more reliable than trusting raw
+  /// heading, and it's what keeps the pin moving along the path the user
+  /// actually asked to follow. Falls back to compass/gyro heading only
+  /// when there's no route to aim at.
+  Offset? _stepDirection(Offset base, double distanceUnits) {
+    final target = _nextRouteWaypoint();
+    if (target != null) {
+      final toTarget = target - base;
+      final distance = toTarget.distance;
+      return distance == 0 ? Offset.zero : toTarget / distance * distanceUnits;
+    }
+
+    final heading = headingDegrees;
+    if (heading == null) return null;
+    final theta = (heading - storeMap.mapNorthOffsetDegrees) * math.pi / 180;
+    return Offset(distanceUnits * math.sin(theta), -distanceUnits * math.cos(theta));
+  }
+
+  /// The beacon immediately after [currentBeacon] on [currentPath] — null
+  /// if there's no active route, or [currentBeacon] isn't on it, or it's
+  /// already the destination (nothing further to walk toward).
+  Offset? _nextRouteWaypoint() {
+    final path = currentPath;
+    final cb = currentBeacon;
+    if (path.length < 2 || cb == null) return null;
+    final index = path.indexWhere((b) => b.id == cb.id);
+    if (index == -1 || index >= path.length - 1) return null;
+    return path[index + 1].position;
   }
 
   void _onHeading(double heading) {

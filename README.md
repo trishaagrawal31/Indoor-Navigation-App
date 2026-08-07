@@ -13,7 +13,7 @@ lib/
   services/
     store_data_repository.dart   Loads assets/store_data.json
     ble_scanner_service.dart     flutter_reactive_ble scan, 3s rolling RSSI avg
-    motion_service.dart          pedometer + flutter_compass -> PDR position deltas
+    motion_service.dart          pedometer step distance + gyroscope/compass fused heading
     zone_snap_service.dart       RSSI-weighted multi-beacon centroid -> position + nearest beacon
     pathfinding_service.dart     Dijkstra over the beacon graph
     navigation_controller.dart   Wires the above into app state (ChangeNotifier)
@@ -105,12 +105,23 @@ for it and wire it into `edges` the same way.
 
 The map arrow no longer only jumps between beacon fixes — between fixes it
 moves continuously via **pedestrian dead reckoning (PDR)**: each detected
-step (`pedometer`, native OS step counter) advances a position estimate by
-one step-length in the current compass heading (`flutter_compass`), and
-each new BLE zone-snap fix resets that estimate back to the beacon's known
-position, correcting drift. See `MotionService`
-(`lib/services/motion_service.dart`) and `NavigationController`'s
-`_onStepDelta`/`_onRssiUpdate` (`lib/services/navigation_controller.dart`).
+step (`pedometer`, backed by the OS's accelerometer-based step counter)
+advances a position estimate by one step-length, and each confirmed BLE
+zone-snap fix resets that estimate back to the beacon's known position,
+correcting drift. See `MotionService` (`lib/services/motion_service.dart`)
+and `NavigationController`'s `_onStepDistance`/`_onRssiUpdate`
+(`lib/services/navigation_controller.dart`).
+
+- **Direction = along the route, not raw heading.** `_stepDirection`
+  (`NavigationController`) walks toward the next waypoint on `currentPath`
+  whenever a route is active, using the compass/gyro heading only as a
+  fallback when there's no destination set. Indoor compass headings are
+  noisy enough (see below) that trusting the planned route's direction is
+  more reliable than trusting the phone's heading — and it's what keeps the
+  pin advancing along the path the user actually asked to follow rather
+  than wherever the compass happens to point. `storeMap.snapToGraph` still
+  clamps the result onto the corridor graph either way, since a
+  straight-line aim at a waypoint can cut a corner through a room interior.
 
 - `store_data.json`'s `metersPerUnit` converts step-length meters into map
   coordinate units; `mapNorthOffsetDegrees` is the compass bearing that
@@ -129,14 +140,16 @@ position, correcting drift. See `MotionService`
   that mismatch is the first thing to check, not another blind 90° nudge.
 - `stepLengthMeters` (`MotionService`, default `0.75`) is a generic average
   adult stride — personalize per-user if needed.
-- **Heading smoothing**: raw compass readings are noisy indoors (structural
-  metal, electronics interfere with the magnetometer), which was causing
-  whole batches of steps to fire in a wildly wrong direction — the live
-  arrow visibly "jumping" instead of moving smoothly. `MotionService`
-  applies an exponential moving average (`_smoothHeading`, circular —
-  handles the 0°/360° wraparound correctly) before using a heading for
-  anything. Tune via the `alpha` default in `_smoothHeading` if turns feel
-  too laggy (higher alpha) or still too jumpy (lower alpha).
+- **Heading = gyroscope + compass fusion**: raw compass readings are noisy
+  indoors (structural metal, electronics interfere with the magnetometer)
+  and comparatively slow to update. `MotionService` now integrates
+  `sensors_plus`' `gyroscopeEventStream()` (rotation rate, typically
+  50-200 Hz) into the heading continuously (`_onGyro`) for fast, low-noise
+  turn response, and corrects the accumulating gyro drift on every compass
+  sample with a small-weight circular blend (`_onCompass`, `_blendHeading`,
+  weight `0.08`) rather than trusting either sensor alone. Tune that weight
+  if turns feel laggy (raise it) or the heading drifts/jitters between
+  compass fixes (lower it).
 - **Multi-beacon vote for *which node*, not winner-take-all**:
   `ZoneSnapService` used to snap to whichever single beacon read
   strongest — noisy indoors, since a farther beacon can transiently
@@ -231,6 +244,16 @@ route distance (e.g. "142 m"), computed from `PathfindingService.findPath`'s
 computes to find the shortest path — no separate calculation) multiplied by
 `metersPerUnit`. Since that scale factor is only roughly calibrated (see
 above), treat this distance as approximate too.
+
+- **If the distance looks way off** (e.g. reported ~44 m for a route
+  expected to be ~24 m): check which beacon is actually set as
+  `destinationBeacon` first, before suspecting `metersPerUnit`. With the
+  current graph (`b2↔b3` 132 units, `b3↔b4` 103, `b4↔b1` 188), `b2→b4` is
+  235 units × `0.104` ≈ **24 m** — already correct — while `b2→b1` (the
+  graph's two *opposite ends*, via `b3` and `b4`) is 423 units × `0.104` ≈
+  **44 m**. That exact match is what a wrong-destination selection looks
+  like; it isn't reproducible from a `metersPerUnit`/edge-weight bug given
+  the numbers above.
 
 ## Item search
 

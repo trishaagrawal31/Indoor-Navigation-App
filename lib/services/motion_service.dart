@@ -1,14 +1,17 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' show Offset;
 
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 
-/// Tracks live position via pedestrian dead reckoning (PDR): each detected
-/// step (from the OS's native step counter) advances a position estimate
-/// by one step-length in the current compass heading direction.
+/// Tracks live motion for PDR (pedestrian dead reckoning): the OS step
+/// counter (accelerometer-backed) reports how far each step covers, and a
+/// gyroscope+compass fusion reports which way the phone is facing.
+/// Direction of *travel* (as opposed to facing) is decided by
+/// [NavigationController], which prefers the current route's direction
+/// over raw heading whenever one is available.
 ///
 /// PDR alone drifts over time — [NavigationController] periodically resets
 /// the accumulated position back to a known beacon location whenever BLE
@@ -31,21 +34,26 @@ class MotionService {
   /// personalize/calibrate later if needed.
   final double stepLengthMeters;
 
-  final _deltaController = StreamController<Offset>.broadcast();
+  final _stepDistanceController = StreamController<double>.broadcast();
   final _headingController = StreamController<double>.broadcast();
   final _errorController = StreamController<String>.broadcast();
 
   StreamSubscription<StepCount>? _stepSub;
   StreamSubscription<CompassEvent>? _compassSub;
+  StreamSubscription<GyroscopeEvent>? _gyroSub;
 
   int? _lastStepCount;
-  double? _latestHeadingDegrees;
+  double? _fusedHeadingDegrees;
+  DateTime? _lastGyroTime;
 
-  /// Map-space position deltas (map units), one per detected step.
-  Stream<Offset> get positionDeltas => _deltaController.stream;
+  /// Distance walked (meters), one event per detected step — direction is
+  /// deliberately not baked in here; the caller decides it (e.g. along the
+  /// current route, or via [headingStream] when there's no route).
+  Stream<double> get stepDistances => _stepDistanceController.stream;
 
-  /// Live compass heading in degrees (0 = North), updated independently of
-  /// steps so the arrow can rotate even while standing still.
+  /// Live compass heading in degrees (0 = North), gyroscope-smoothed —
+  /// updated independently of steps so the arrow can rotate even while
+  /// standing still.
   Stream<double> get headingStream => _headingController.stream;
 
   /// Human-readable reasons motion tracking couldn't start — e.g. a denied
@@ -64,14 +72,13 @@ class MotionService {
     if (compassEvents == null) {
       _errorController.add('Compass not available on this device.');
     } else {
-      _compassSub = compassEvents.listen((event) {
-        final heading = event.heading;
-        if (heading == null) return;
-        final smoothed = _smoothHeading(_latestHeadingDegrees, heading);
-        _latestHeadingDegrees = smoothed;
-        _headingController.add(smoothed);
-      });
+      _compassSub = compassEvents.listen(_onCompass);
     }
+
+    _gyroSub = gyroscopeEventStream().listen(
+      _onGyro,
+      onError: (Object e) => _errorController.add('Gyroscope error: $e'),
+    );
 
     _stepSub = Pedometer.stepCountStream.listen(
       _onStepCount,
@@ -87,46 +94,70 @@ class MotionService {
     final newSteps = event.steps - last;
     if (newSteps <= 0) return;
 
-    final heading = _latestHeadingDegrees;
-    if (heading == null) return; // No heading yet — can't determine direction.
-
-    final distanceMeters = newSteps * stepLengthMeters;
-    final distanceUnits = distanceMeters / metersPerUnit;
-    final theta = (heading - mapNorthOffsetDegrees) * math.pi / 180;
-    final delta = Offset(distanceUnits * math.sin(theta), -distanceUnits * math.cos(theta));
-    _deltaController.add(delta);
+    _stepDistanceController.add(newSteps * stepLengthMeters);
   }
 
-  /// Exponential moving average that handles the 0°/360° wraparound
-  /// correctly by averaging in Cartesian (unit-vector) space rather than
-  /// raw degrees — naively averaging e.g. 350° and 10° would otherwise give
-  /// 180° instead of ~0°. Smooths out magnetometer noise (common indoors,
-  /// near structural metal/electronics) that otherwise sends a whole batch
-  /// of steps off in a wildly wrong direction on a single bad reading —
-  /// the main cause of the live position "jumping" instead of moving
-  /// smoothly. [alpha] close to 0 = heavier smoothing (more lag on real
-  /// turns); close to 1 = lighter smoothing (more noise gets through).
-  double _smoothHeading(double? previous, double next, {double alpha = 0.15}) {
-    if (previous == null) return next;
-    final prevRad = previous * math.pi / 180;
-    final nextRad = next * math.pi / 180;
-    final x = (1 - alpha) * math.cos(prevRad) + alpha * math.cos(nextRad);
-    final y = (1 - alpha) * math.sin(prevRad) + alpha * math.sin(nextRad);
-    var result = math.atan2(y, x) * 180 / math.pi;
-    if (result < 0) result += 360;
-    return result;
+  /// Integrates rotation rate into the fused heading — fires far more
+  /// often than the compass (typically 50-200 Hz vs. a magnetometer's
+  /// noisier, coarser updates), so turns show up immediately instead of
+  /// waiting on the next compass sample. Drifts on its own over time,
+  /// which [_onCompass] continuously corrects.
+  void _onGyro(GyroscopeEvent event) {
+    final now = DateTime.now();
+    final last = _lastGyroTime;
+    _lastGyroTime = now;
+    final current = _fusedHeadingDegrees;
+    if (last == null || current == null) return; // Need a compass fix to anchor to first.
+
+    final dtSeconds = now.difference(last).inMicroseconds / 1e6;
+    if (dtSeconds <= 0 || dtSeconds > 0.5) return; // Skip large gaps (e.g. app backgrounded).
+
+    // event.z is rotation rate (rad/s) around the phone's vertical axis
+    // when held flat, positive = counter-clockwise; compass heading
+    // increases clockwise, hence the negation.
+    final deltaDegrees = -event.z * dtSeconds * 180 / math.pi;
+    _fusedHeadingDegrees = _wrapDegrees(current + deltaDegrees);
+    _headingController.add(_fusedHeadingDegrees!);
   }
+
+  /// Anchors/corrects the gyro-integrated heading against the compass's
+  /// absolute (but noisier, indoors-near-metal-unreliable) reading —
+  /// a small correction weight per event so gyro drift gets continuously
+  /// reined in without reintroducing the compass's raw jumpiness.
+  void _onCompass(CompassEvent event) {
+    final heading = event.heading;
+    if (heading == null) return;
+
+    final current = _fusedHeadingDegrees;
+    _fusedHeadingDegrees = current == null ? heading : _blendHeading(current, heading, weight: 0.08);
+    _headingController.add(_fusedHeadingDegrees!);
+  }
+
+  /// Circular blend (handles the 0°/360° wraparound correctly by averaging
+  /// in Cartesian/unit-vector space) — naively averaging e.g. 350° and 10°
+  /// would otherwise give 180° instead of ~0°.
+  double _blendHeading(double base, double correction, {required double weight}) {
+    final baseRad = base * math.pi / 180;
+    final correctionRad = correction * math.pi / 180;
+    final x = (1 - weight) * math.cos(baseRad) + weight * math.cos(correctionRad);
+    final y = (1 - weight) * math.sin(baseRad) + weight * math.sin(correctionRad);
+    return _wrapDegrees(math.atan2(y, x) * 180 / math.pi);
+  }
+
+  double _wrapDegrees(double degrees) => (degrees % 360 + 360) % 360;
 
   void stop() {
     _stepSub?.cancel();
     _stepSub = null;
     _compassSub?.cancel();
     _compassSub = null;
+    _gyroSub?.cancel();
+    _gyroSub = null;
   }
 
   void dispose() {
     stop();
-    _deltaController.close();
+    _stepDistanceController.close();
     _headingController.close();
     _errorController.close();
   }
