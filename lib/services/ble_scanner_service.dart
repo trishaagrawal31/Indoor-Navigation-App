@@ -15,13 +15,8 @@ class _TimedRssi {
 /// identity. Consumers (see [ZoneSnapService]) turn this into a location.
 ///
 /// A beacon's identity is derived in [_onDeviceSeen], preferring (in order):
-/// 1. iBeacon proximity UUID + major + minor, parsed from the
-///    advertisement's manufacturer data — the standard for dedicated beacon
-///    hardware, and unique even across a fleet sharing one UUID.
-/// 2. The first advertised 128-bit service UUID, for devices that
-///    advertise a distinctive service UUID but aren't iBeacon-formatted
-///    (e.g. as a stand-in beacon during testing, or hardware using a
-///    GATT-service-based scheme instead of iBeacon).
+/// 1. MAC-to-beacon mapping for configured store beacons.
+/// 2. iBeacon proximity UUID parsed from manufacturer data.
 /// Never [DiscoveredDevice.id] — that's the scanning radio's own address
 /// (a MAC on Android), unrelated to how a beacon identifies itself.
 class BleScannerService {
@@ -32,6 +27,10 @@ class BleScannerService {
 
   FlutterReactiveBle? _ble;
   final Duration rollingWindow;
+  static const _debugTargetMacToKey = {
+    'c300001318cb': 'e2c56db5-dffb-48d2-b060-d0f5a71096e0:0:0',
+    'c300001318ba': 'e2c56db5-dffb-48d2-b060-d0f5a71096e0:0:1',
+  };
 
   final Map<String, List<_TimedRssi>> _readings = {};
   final _rssiController = StreamController<Map<String, double>>.broadcast();
@@ -99,11 +98,28 @@ class BleScannerService {
   }
 
   void _onDeviceSeen(DiscoveredDevice device) {
+    final manufacturerHex = device.manufacturerData.isNotEmpty
+        ? device.manufacturerData.map((b) => b.toRadixString(16).padLeft(2, '0')).join()
+        : '<empty>';
     final beacon = parseIBeacon(device.manufacturerData);
-    final key = beacon?.key ??
-        (device.serviceUuids.isNotEmpty ? device.serviceUuids.first.toString().toLowerCase() : null);
+    String? key;
 
-    if (key == null) return; // No iBeacon data and no service UUID to key on.
+    final normalizedDeviceId = device.id.replaceAll(':', '').toLowerCase();
+    if (_debugTargetMacToKey.containsKey(normalizedDeviceId)) {
+      key = _debugTargetMacToKey[normalizedDeviceId]!;
+      print('BLE scan: mapped device=${device.id} to beacon key=$key via MAC');
+    } else if (beacon != null) {
+      key = beacon.uuid;
+      print('BLE scan: mapped device=${device.id} to beacon key=$key via UUID');
+    }
+
+    print('BLE scan: device=${device.id} name=${device.name} rssi=${device.rssi} '
+        'services=${device.serviceUuids} manufacturerData=$manufacturerHex parsedIBeacon=$beacon key=$key');
+
+    if (key == null) {
+      print('BLE scan: skipped device ${device.id} because no iBeacon/manufacturer data and no service UUID');
+      return;
+    }
 
     final now = DateTime.now();
     final history = _readings.putIfAbsent(key, () => []);
@@ -154,13 +170,37 @@ class IBeacon {
 }
 
 /// Parses an iBeacon advertisement's manufacturer data (Apple company id
-/// 0x004C, iBeacon type 0x02) into its proximity UUID, major, and minor, or
-/// null if [data] isn't a valid iBeacon payload.
+/// 0x004C, iBeacon type 0x0215) into its proximity UUID, major, and minor,
+/// or null if [data] doesn't contain a valid iBeacon payload.
 IBeacon? parseIBeacon(Uint8List data) {
-  if (data.length < 24) return null;
-  final isAppleCompanyId = data[0] == 0x4C && data[1] == 0x00;
-  final isIBeaconType = data[2] == 0x02 && data[3] == 0x15;
-  if (!isAppleCompanyId || !isIBeaconType) return null;
+  final rawHex = data.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+  print('parseIBeacon: raw=$rawHex length=${data.length}');
+
+  if (data.length < 4) {
+    print('parseIBeacon: data too short to contain iBeacon header');
+    return null;
+  }
+
+  for (var i = 0; i <= data.length - 4; i++) {
+    if (data[i] == 0x4C && data[i + 1] == 0x00 && data[i + 2] == 0x02 && data[i + 3] == 0x15) {
+      if (i + 24 > data.length) {
+        print('parseIBeacon: found prefix at $i but payload is too short (${data.length - i} bytes)');
+        return null;
+      }
+      final uuidBytes = data.sublist(i + 4, i + 20);
+      final hex = uuidBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+      final uuid = '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-'
+          '${hex.substring(16, 20)}-${hex.substring(20, 32)}';
+      final major = (data[i + 20] << 8) | data[i + 21];
+      final minor = (data[i + 22] << 8) | data[i + 23];
+      final beacon = IBeacon(uuid: uuid, major: major, minor: minor);
+      print('parseIBeacon: parsed=$beacon at offset=$i');
+      return beacon;
+    }
+  }
+
+  print('parseIBeacon: no iBeacon prefix found');
+  return null;
 
   final uuidBytes = data.sublist(4, 20);
   final hex = uuidBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
