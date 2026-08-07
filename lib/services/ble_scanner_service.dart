@@ -29,7 +29,9 @@ class BleScannerService {
   final Duration rollingWindow;
   static const _debugTargetMacToKey = {
     'c300001318cb': 'e2c56db5-dffb-48d2-b060-d0f5a71096e0:0:0',
-    'c300001318ba': 'e2c56db5-dffb-48d2-b060-d0f5a71096e0:0:1',
+    'c300001318ba': 'e2c56db5-dffb-48d2-b060-d0f5a71096e1:0:1',
+    'c300001318c3': 'e2c56db5-dffb-48d2-b060-d0f5a71096e2:0:2',
+    'c300001318b9': 'e2c56db5-dffb-48d2-b060-d0f5a71096e3:0:3',
   };
 
   final Map<String, List<_TimedRssi>> _readings = {};

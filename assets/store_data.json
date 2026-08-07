@@ -6,9 +6,9 @@
   "mapNorthOffsetDegrees":180,
   "beacons": [
     { "id": "b1", "bleId": "e2c56db5-dffb-48d2-b060-d0f5a71096e0", "major": 0, "minor": 0, "name": "Breakout / Seating 1", "x": 135, "y": 43 },
-    { "id": "b2", "bleId": "e2c56db5-dffb-48d2-b060-d0f5a71096e0", "major": 0, "minor": 1, "name": "Seating 1 / ChatGPT Room", "x": 120, "y": 147 },
-    { "id": "b3", "bleId": "e2c56db5-dffb-48d2-b060-d0f5a71096e0", "major": 0, "minor": 2, "name": "Safari / Gemma Room", "x": 200, "y": 146 },
-    { "id": "b4", "bleId": "e2c56db5-dffb-48d2-b060-d0f5a71096e0", "major": 0, "minor": 3, "name": "SOC / Seating 2", "x": 200, "y": 43 }
+    { "id": "b2", "bleId": "e2c56db5-dffb-48d2-b060-d0f5a71096e1", "major": 0, "minor": 1, "name": "Seating 1 / ChatGPT Room", "x": 120, "y": 147 },
+    { "id": "b3", "bleId": "e2c56db5-dffb-48d2-b060-d0f5a71096e2", "major": 0, "minor": 2, "name": "Safari / Gemma Room", "x": 200, "y": 146 },
+    { "id": "b4", "bleId": "e2c56db5-dffb-48d2-b060-d0f5a71096e3", "major": 0, "minor": 3, "name": "SOC / Seating 2", "x": 200, "y": 43 }
   ],
   "edges": [
     
